@@ -1,15 +1,18 @@
 import { Extension } from '@tiptap/core'
+import { Fragment, Slice } from '@tiptap/pm/model'
 import { NodeSelection, Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
+import { dropPoint } from '@tiptap/pm/transform'
 import type { EditorView } from '@tiptap/pm/view'
 
 /**
  * Notion-style block controls: a grip that drags a block to a new position and
- * a `+` that inserts a paragraph below it.
+ * a `+` that opens the block menu below it.
  *
- * Tiptap v2's own drag handle is a paid Pro extension, so this drives
- * ProseMirror's built-in drag machinery directly: on `dragstart` we put a
- * `NodeSelection` on the hovered block and hand its slice to `view.dragging`,
- * which lets ProseMirror render the drop cursor and perform the move.
+ * Dragging is driven by pointer events rather than HTML5 drag-and-drop. Native
+ * DnD would hand us ProseMirror's drop handling for free, but the browser owns
+ * the cursor for the duration of a native drag and takes it from `dropEffect`,
+ * so a grab cursor is impossible. Owning the gesture means we also draw the
+ * drop indicator and perform the move ourselves.
  */
 
 /** Nodes that get their own handle rather than deferring to their container. */
@@ -18,6 +21,8 @@ const ITEM_NODES = new Set(['listItem', 'taskItem'])
 /** Horizontal gap between the controls and the block they belong to. */
 const GUTTER_OFFSET = 50
 const HANDLE_SIZE = 22
+/** Pointer travel before a press becomes a drag, so clicks still register. */
+const DRAG_THRESHOLD = 4
 
 interface HoverTarget {
   /**
@@ -28,6 +33,12 @@ interface HoverTarget {
   /** True when `pos` is a list/to-do item rather than a top-level block. */
   isItem: boolean
   dom: HTMLElement
+}
+
+/** Where a release would insert, and the y to draw the indicator at. */
+interface DropSpot {
+  pos: number
+  y: number
 }
 
 const isList = (el: Element): boolean => el.tagName === 'UL' || el.tagName === 'OL'
@@ -69,22 +80,56 @@ function blockElementAt(view: EditorView, clientY: number): HTMLElement | null {
   return el instanceof HTMLElement ? el : null
 }
 
+function nodePosOf(view: EditorView, dom: HTMLElement): number | null {
+  try {
+    // `posAtDOM(el, 0)` lands just inside the node; step back to the node.
+    return view.posAtDOM(dom, 0) - 1
+  } catch {
+    return null
+  }
+}
+
 function resolveTarget(view: EditorView, clientY: number): HoverTarget | null {
   const dom = blockElementAt(view, clientY)
   if (!dom) return null
 
-  let pos: number
-  try {
-    // `posAtDOM(el, 0)` lands just inside the node; step back to the node.
-    pos = view.posAtDOM(dom, 0) - 1
-  } catch {
-    return null
-  }
+  const pos = nodePosOf(view, dom)
+  if (pos === null) return null
 
   const node = view.state.doc.nodeAt(pos)
   if (!node) return null
 
   return { pos, isItem: ITEM_NODES.has(node.type.name), dom }
+}
+
+/** The gap nearest the pointer: above the hovered row, or below it. */
+function dropSpotAt(view: EditorView, clientY: number): DropSpot | null {
+  const dom = blockElementAt(view, clientY)
+  if (!dom) return null
+
+  const pos = nodePosOf(view, dom)
+  if (pos === null) return null
+
+  const node = view.state.doc.nodeAt(pos)
+  if (!node) return null
+
+  const rect = dom.getBoundingClientRect()
+  const above = clientY < rect.top + rect.height / 2
+
+  // Draw in the middle of the gap between the two blocks. "Below A" and
+  // "above B" are the same insertion point, so anchoring to A's bottom edge
+  // for one and B's top edge for the other would show a single drop location
+  // at two different heights as the pointer crosses the gap.
+  const neighbour = above ? dom.previousElementSibling : dom.nextElementSibling
+  let y: number
+  if (neighbour) {
+    const gap = neighbour.getBoundingClientRect()
+    y = above ? (gap.bottom + rect.top) / 2 : (rect.bottom + gap.top) / 2
+  } else {
+    y = above ? rect.top : rect.bottom
+  }
+
+  return { pos: above ? pos : pos + node.nodeSize, y }
 }
 
 export const BlockDragHandle = Extension.create({
@@ -107,16 +152,14 @@ export const BlockDragHandle = Extension.create({
           const hoverArea = wrapper
 
           let target: HoverTarget | null = null
-          let dragging = false
           /** Pointer row the controls currently belong to. */
           let lastClientY: number | null = null
-          /**
-           * Set while the pointer is held on the grip. The browser emits
-           * mousemove before `dragstart`, so without this the few pixels of
-           * travel that begin a drag would retarget the handle and move a
-           * different block than the one grabbed.
-           */
-          let locked = false
+
+          /** Set between mousedown on the grip and mouseup. */
+          let pressed: { x: number; y: number; target: HoverTarget } | null = null
+          /** True once the press has passed the movement threshold. */
+          let dragging = false
+          let dropSpot: DropSpot | null = null
 
           const controls = document.createElement('div')
           controls.className = 'block-controls'
@@ -133,7 +176,6 @@ export const BlockDragHandle = Extension.create({
           const grip = document.createElement('button')
           grip.type = 'button'
           grip.className = 'block-control block-grip'
-          grip.draggable = true
           grip.title = 'Drag to move'
           grip.setAttribute('aria-label', 'Drag to move block')
           grip.innerHTML =
@@ -141,16 +183,27 @@ export const BlockDragHandle = Extension.create({
 
           controls.append(addButton, grip)
 
-          // The controls live outside the editor's own DOM, so they survive if
-          // an editor instance goes away without its plugin view being
-          // destroyed — a hot reload, or a re-created editor. Clearing any
-          // strays keeps exactly one set of handles per editor instead of
-          // leaving a second, orphaned one responding to hover.
-          for (const stale of wrapper.querySelectorAll('.block-controls')) stale.remove()
-          wrapper.appendChild(controls)
+          const indicator = document.createElement('div')
+          indicator.className = 'block-drop-indicator'
+          indicator.setAttribute('contenteditable', 'false')
+
+          // These live outside the editor's own DOM, so they survive if an
+          // editor instance goes away without its plugin view being destroyed
+          // — a hot reload, or a re-created editor. Clearing strays keeps
+          // exactly one set per editor instead of leaving orphans behind.
+          for (const stale of wrapper.querySelectorAll(
+            '.block-controls, .block-drop-indicator'
+          )) {
+            stale.remove()
+          }
+          wrapper.append(controls, indicator)
+
+          /* ------------------------------------------------------------ */
+          /* Hover                                                        */
+          /* ------------------------------------------------------------ */
 
           const hide = (): void => {
-            if (dragging) return
+            if (pressed) return
             controls.classList.remove('is-visible')
             target = null
             lastClientY = null
@@ -180,16 +233,15 @@ export const BlockDragHandle = Extension.create({
             controls.classList.add('is-visible')
           }
 
-          /** Re-resolves the block under the last known pointer row. */
           const refresh = (): void => {
-            if (dragging || locked || lastClientY === null) return
+            if (pressed || lastClientY === null) return
             const next = resolveTarget(view, lastClientY)
             if (next) position(next)
             else hide()
           }
 
           const onMouseMove = (event: MouseEvent): void => {
-            if (dragging || locked || !view.editable) return
+            if (pressed || !view.editable) return
             lastClientY = event.clientY
             refresh()
           }
@@ -201,62 +253,118 @@ export const BlockDragHandle = Extension.create({
             hide()
           }
 
-          const onDragStart = (event: DragEvent): void => {
-            if (!target || !event.dataTransfer) return
-            dragging = true
+          /* ------------------------------------------------------------ */
+          /* Dragging                                                     */
+          /* ------------------------------------------------------------ */
 
-            // Must precede the dispatch below: the selection styling would
-            // otherwise be applied before the drag image is snapshotted.
-            wrapper.classList.add('is-block-dragging')
-            // On the body, not the editor: the pointer can leave the editor
-            // mid-drag and the cursor should not revert.
-            document.body.classList.add('is-dragging-block')
+          const showIndicator = (spot: DropSpot): void => {
+            const wrapperRect = wrapper.getBoundingClientRect()
+            const editorRect = view.dom.getBoundingClientRect()
+            const gutter = parseFloat(window.getComputedStyle(view.dom).paddingLeft) || 0
 
-            const selection = NodeSelection.create(view.state.doc, target.pos)
-            view.dispatch(view.state.tr.setSelection(selection))
-
-            const slice = view.state.selection.content()
-            event.dataTransfer.effectAllowed = 'move'
-            event.dataTransfer.clearData()
-            // Chromium aborts a drag that carries no data, so send the block's
-            // text — it also makes dropping into another app do something sane.
-            event.dataTransfer.setData('text/plain', target.dom.textContent ?? ' ')
-            event.dataTransfer.setDragImage(target.dom, 0, 0)
-
-            // Handing the slice to ProseMirror gives us its drop cursor and
-            // its handling of the drop itself.
-            view.dragging = { slice, move: true }
-
-            // Hiding the drag source *during* `dragstart` cancels the drag in
-            // Chromium (dragend fires immediately, no dragover/drop), so this
-            // has to wait until after the handler returns.
-            setTimeout(() => controls.classList.remove('is-visible'), 0)
+            indicator.style.top = `${spot.y - wrapperRect.top - 2}px`
+            indicator.style.left = `${editorRect.left - wrapperRect.left + gutter}px`
+            indicator.style.width = `${editorRect.width - gutter}px`
+            indicator.classList.add('is-visible')
           }
 
-          const onDragEnd = (): void => {
+          const endDrag = (): void => {
+            pressed = null
             dragging = false
-            locked = false
-            view.dragging = null
-            wrapper.classList.remove('is-block-dragging')
+            dropSpot = null
+            indicator.classList.remove('is-visible')
             document.body.classList.remove('is-dragging-block')
+            wrapper.classList.remove('is-block-dragging')
           }
 
-          const onGripMouseDown = (): void => {
-            locked = true
+          /** Moves the pressed block to `spot`, keeping the document valid. */
+          const commitDrop = (spot: DropSpot, from: number): void => {
+            const { state } = view
+            const node = state.doc.nodeAt(from)
+            if (!node) return
+
+            const to = from + node.nodeSize
+            // Dropping inside the block being moved is a no-op, not a move.
+            if (spot.pos >= from && spot.pos <= to) return
+
+            const slice = new Slice(Fragment.from(node), 0, 0)
+            let tr = state.tr.delete(from, to)
+
+            const mapped = tr.mapping.map(spot.pos)
+            // `dropPoint` finds the nearest position the slice actually fits,
+            // so a list item dropped between paragraphs lands somewhere legal
+            // instead of throwing.
+            const point = dropPoint(tr.doc, mapped, slice)
+            if (point === null || point === undefined) return
+
+            tr = tr.replace(point, point, slice)
+
+            const $at = tr.doc.resolve(point)
+            const landed = $at.nodeAfter
+            if (landed) {
+              tr = tr.setSelection(NodeSelection.create(tr.doc, point))
+            }
+
+            view.dispatch(tr.scrollIntoView())
           }
 
-          // A press that never became a drag must not leave the handle stuck.
+          const onGripMouseDown = (event: MouseEvent): void => {
+            if (event.button !== 0 || !target) return
+            // Keeps the press from selecting text or blurring the editor.
+            event.preventDefault()
+            pressed = { x: event.clientX, y: event.clientY, target }
+          }
+
+          const onWindowMouseMove = (event: MouseEvent): void => {
+            if (!pressed) return
+
+            if (!dragging) {
+              const moved =
+                Math.abs(event.clientX - pressed.x) + Math.abs(event.clientY - pressed.y)
+              if (moved < DRAG_THRESHOLD) return
+              dragging = true
+              document.body.classList.add('is-dragging-block')
+              wrapper.classList.add('is-block-dragging')
+              controls.classList.remove('is-visible')
+              view.dispatch(
+                view.state.tr.setSelection(
+                  NodeSelection.create(view.state.doc, pressed.target.pos)
+                )
+              )
+            }
+
+            dropSpot = dropSpotAt(view, event.clientY)
+            if (dropSpot) showIndicator(dropSpot)
+            else indicator.classList.remove('is-visible')
+          }
+
           const onWindowMouseUp = (): void => {
-            if (!dragging) locked = false
+            if (!pressed) return
+            const { target: dragged } = pressed
+            const spot = dropSpot
+            const wasDragging = dragging
+
+            endDrag()
+
+            if (wasDragging && spot) commitDrop(spot, dragged.pos)
+            else if (!wasDragging) {
+              // A press that never moved is a click: select the block.
+              view.dispatch(
+                view.state.tr.setSelection(
+                  NodeSelection.create(view.state.doc, dragged.pos)
+                )
+              )
+              view.focus()
+            }
           }
 
-          const onGripClick = (): void => {
-            if (!target) return
-            view.dispatch(
-              view.state.tr.setSelection(NodeSelection.create(view.state.doc, target.pos))
-            )
-            view.focus()
+          const onKeyDown = (event: KeyboardEvent): void => {
+            if (event.key === 'Escape' && pressed) endDrag()
           }
+
+          /* ------------------------------------------------------------ */
+          /* Adding blocks                                                */
+          /* ------------------------------------------------------------ */
 
           /**
            * Opens the block picker on a fresh block below the hovered one.
@@ -310,17 +418,15 @@ export const BlockDragHandle = Extension.create({
           }
 
           // Keeps the editor focused (and the caret put) when `+` is pressed.
-          // The grip must not do this, or the browser won't start a drag.
           addButton.addEventListener('mousedown', (event) => event.preventDefault())
+          addButton.addEventListener('click', onAddClick)
 
+          grip.addEventListener('mousedown', onGripMouseDown)
           hoverArea.addEventListener('mousemove', onMouseMove)
           hoverArea.addEventListener('mouseleave', onMouseLeave)
-          grip.addEventListener('mousedown', onGripMouseDown)
+          window.addEventListener('mousemove', onWindowMouseMove)
           window.addEventListener('mouseup', onWindowMouseUp)
-          grip.addEventListener('dragstart', onDragStart)
-          grip.addEventListener('dragend', onDragEnd)
-          grip.addEventListener('click', onGripClick)
-          addButton.addEventListener('click', onAddClick)
+          window.addEventListener('keydown', onKeyDown)
 
           return {
             update: () => {
@@ -328,20 +434,20 @@ export const BlockDragHandle = Extension.create({
               // rather than hiding: blurring the editor to click the grip is
               // itself a transaction, and hiding here would pull the control
               // out from under the click.
-              if (!dragging && target) refresh()
+              if (!pressed && target) refresh()
             },
             destroy: () => {
+              addButton.removeEventListener('click', onAddClick)
+              grip.removeEventListener('mousedown', onGripMouseDown)
               hoverArea.removeEventListener('mousemove', onMouseMove)
               hoverArea.removeEventListener('mouseleave', onMouseLeave)
-              grip.removeEventListener('mousedown', onGripMouseDown)
+              window.removeEventListener('mousemove', onWindowMouseMove)
               window.removeEventListener('mouseup', onWindowMouseUp)
-              grip.removeEventListener('dragstart', onDragStart)
-              grip.removeEventListener('dragend', onDragEnd)
-              grip.removeEventListener('click', onGripClick)
-              addButton.removeEventListener('click', onAddClick)
-              wrapper.classList.remove('is-block-dragging')
+              window.removeEventListener('keydown', onKeyDown)
               document.body.classList.remove('is-dragging-block')
+              wrapper.classList.remove('is-block-dragging')
               controls.remove()
+              indicator.remove()
             }
           }
         }

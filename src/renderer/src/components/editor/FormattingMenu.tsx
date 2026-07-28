@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { BubbleMenu, type Editor } from '@tiptap/react'
+import { NodeSelection } from '@tiptap/pm/state'
 import {
   Bold,
   Code,
@@ -80,9 +81,12 @@ export function FormattingMenu({ editor }: FormattingMenuProps): React.JSX.Eleme
     <BubbleMenu
       editor={editor}
       tippyOptions={{ duration: 120, placement: 'top', maxWidth: 'none' }}
-      shouldShow={({ editor: instance, from, to }) => {
+      shouldShow={({ editor: instance, state, from, to }) => {
         // Hide inside code blocks, where inline marks don't apply.
         if (instance.isActive('codeBlock')) return false
+        // Selecting a whole block via its drag handle is a NodeSelection, not
+        // a text range — an inline formatting bar has nothing to act on there.
+        if (state.selection instanceof NodeSelection) return false
         return from !== to
       }}
       className="flex items-center gap-0.5 rounded-lg border bg-popover p-1 shadow-md"

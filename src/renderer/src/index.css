@@ -245,8 +245,17 @@ body.is-dragging-block * {
   background-color: transparent;
 }
 
-/* Drop indicator. Colour and thickness come from the Dropcursor extension in
-   Editor.tsx; this only softens the ends and lifts it above the text. */
+/* Drop indicator for a block drag, drawn by the handle plugin. */
+.block-drop-indicator {
+  @apply pointer-events-none absolute z-30 h-1 rounded-full opacity-0;
+  background-color: #2f6fa8;
+}
+
+.block-drop-indicator.is-visible {
+  @apply opacity-100;
+}
+
+/* ProseMirror's own cursor, still used when dragging a text selection. */
 .graphite-dropcursor {
   border-radius: 9999px;
   pointer-events: none;
