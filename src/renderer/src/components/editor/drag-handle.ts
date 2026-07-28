@@ -124,6 +124,13 @@ export const BlockDragHandle = Extension.create({
             '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>'
 
           controls.append(addButton, grip)
+
+          // The controls live outside the editor's own DOM, so they survive if
+          // an editor instance goes away without its plugin view being
+          // destroyed — a hot reload, or a re-created editor. Clearing any
+          // strays keeps exactly one set of handles per editor instead of
+          // leaving a second, orphaned one responding to hover.
+          for (const stale of wrapper.querySelectorAll('.block-controls')) stale.remove()
           wrapper.appendChild(controls)
 
           const hide = (): void => {
