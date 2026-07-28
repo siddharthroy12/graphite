@@ -118,7 +118,13 @@ export const BlockSelection = Extension.create({
 
           const scrollHost = scrollHostOf(wrapper)
 
-          let origin: { x: number; y: number } | null = null
+          /** True when the pointer is below the last block (vs. in a margin). */
+          const belowContent = (clientY: number): boolean => {
+            const last = view.dom.lastElementChild
+            return !!last && clientY > last.getBoundingClientRect().bottom
+          }
+
+          let origin: { x: number; y: number; below: boolean } | null = null
           let active = false
 
           /** True where a drag should lasso blocks rather than select text. */
@@ -134,8 +140,7 @@ export const BlockSelection = Extension.create({
             if (event.clientX > contentRightOf(view)) return true
 
             // Empty space below the content, within the column's width.
-            const last = view.dom.lastElementChild
-            return !!last && event.clientY > last.getBoundingClientRect().bottom
+            return belowContent(event.clientY)
           }
 
           const selectWithin = (top: number, bottom: number): void => {
@@ -191,7 +196,11 @@ export const BlockSelection = Extension.create({
 
           const onMouseDown = (event: MouseEvent): void => {
             if (!canStart(event)) return
-            origin = { x: event.clientX, y: event.clientY }
+            origin = { x: event.clientX, y: event.clientY, below: belowContent(event.clientY) }
+            // Stops the browser from starting its own text selection, which
+            // would drag across the title and icon above the editor. A plain
+            // click below the content is restored on mouseup.
+            event.preventDefault()
           }
 
           const onMouseMove = (event: MouseEvent): void => {
@@ -204,19 +213,35 @@ export const BlockSelection = Extension.create({
               active = true
               marquee.classList.add('is-active')
               document.body.classList.add('is-selecting-blocks')
+              // Drop any stray native selection begun before the threshold.
+              window.getSelection()?.removeAllRanges()
             }
 
-            // Only now, so a plain click below the content still places a caret.
-            event.preventDefault()
             draw(event)
           }
 
           const finish = (): void => {
+            const start = origin
+            const wasActive = active
             origin = null
-            if (!active) return
-            active = false
-            marquee.classList.remove('is-active')
-            document.body.classList.remove('is-selecting-blocks')
+
+            if (wasActive) {
+              active = false
+              marquee.classList.remove('is-active')
+              document.body.classList.remove('is-selecting-blocks')
+              return
+            }
+
+            // A press that never became a marquee. `preventDefault` on mousedown
+            // ate the native caret placement, so a click below the content is
+            // restored here as focus at the document's end.
+            if (start?.below) {
+              const end = view.state.doc.content.size
+              view.dispatch(
+                view.state.tr.setSelection(TextSelection.create(view.state.doc, end))
+              )
+              view.focus()
+            }
           }
 
           scrollHost.addEventListener('mousedown', onMouseDown)
