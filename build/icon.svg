@@ -6,10 +6,11 @@
     literal thing the app is named after. Pointy-top hexagon (vertical left and
     right bonds), drawn as one high-contrast shape so it still reads at 16px.
 
-    Geometry: circumradius 250 about (512, 512). In a regular hexagon the side
-    equals the circumradius, so every bond spans the same 250 units and each is
-    inset 62 at both ends — the atom radius (52) plus a 10 unit gap. Bonds are
-    flat-ended (butt caps), so that gap stays open between bond and atom.
+    Geometry: circumradius 250 about (512, 512), so the six atoms sit on the
+    vertices. Bonds run the full vertex-to-vertex span and the atoms are drawn
+    over them, which is what keeps the joins seamless — insetting the bonds
+    instead would reopen a gap at any stroke width. Ends are flat (butt caps);
+    they land at the vertex centres, well inside the atoms.
   -->
   <defs>
     <linearGradient id="tile" x1="0" y1="0" x2="0.2" y2="1">
@@ -25,12 +26,12 @@
   />
 
   <g stroke="#17171a" stroke-width="26" stroke-linecap="butt">
-    <line x1="565.69" y1="293.00" x2="674.81" y2="356.00" />
-    <line x1="728.51" y1="449.00" x2="728.51" y2="575.00" />
-    <line x1="674.81" y1="668.00" x2="565.69" y2="731.00" />
-    <line x1="458.31" y1="731.00" x2="349.19" y2="668.00" />
-    <line x1="295.49" y1="575.00" x2="295.49" y2="449.00" />
-    <line x1="349.19" y1="356.00" x2="458.31" y2="293.00" />
+    <line x1="512.00" y1="262.00" x2="728.51" y2="387.00" />
+    <line x1="728.51" y1="387.00" x2="728.51" y2="637.00" />
+    <line x1="728.51" y1="637.00" x2="512.00" y2="762.00" />
+    <line x1="512.00" y1="762.00" x2="295.49" y2="637.00" />
+    <line x1="295.49" y1="637.00" x2="295.49" y2="387.00" />
+    <line x1="295.49" y1="387.00" x2="512.00" y2="262.00" />
   </g>
 
   <g fill="#17171a">
