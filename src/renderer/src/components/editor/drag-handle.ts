@@ -12,16 +12,21 @@ import type { EditorView } from '@tiptap/pm/view'
  * which lets ProseMirror render the drop cursor and perform the move.
  */
 
+/** Nodes that get their own handle rather than deferring to their container. */
+const ITEM_NODES = new Set(['listItem', 'taskItem'])
+
 /** Horizontal gap between the controls and the block they belong to. */
 const GUTTER_OFFSET = 50
 const HANDLE_SIZE = 22
 
 interface HoverTarget {
   /**
-   * Position of the top-level block. Handles are per block, not per line, so a
-   * list is one draggable unit rather than one per item.
+   * Node the grip drags. List and to-do items get their own handle so they
+   * move individually; anything else defers to its top-level block.
    */
   pos: number
+  /** True when `pos` is a list/to-do item rather than a top-level block. */
+  isItem: boolean
   dom: HTMLElement
 }
 
@@ -40,20 +45,30 @@ function resolveTarget(view: EditorView, clientY: number): HoverTarget | null {
   // the containing node, which resolves to depth 0 for a top-level block.
   const $pos = view.state.doc.resolve(found.pos)
 
-  // Depth 1 is the top-level block, so nested content (a list item, a
-  // paragraph inside a quote) resolves to its container.
   let pos: number
+  let isItem = false
+
   if ($pos.depth === 0) {
     if (found.inside < 0) return null
     pos = found.inside
   } else {
-    pos = $pos.before(1)
+    // Innermost list item wins, so each bullet is its own handle; otherwise
+    // fall back to the top-level block at depth 1.
+    let depth = 1
+    for (let d = $pos.depth; d >= 1; d--) {
+      if (ITEM_NODES.has($pos.node(d).type.name)) {
+        depth = d
+        isItem = true
+        break
+      }
+    }
+    pos = $pos.before(depth)
   }
 
   const dom = view.nodeDOM(pos)
   if (!(dom instanceof HTMLElement)) return null
 
-  return { pos, dom }
+  return { pos, isItem, dom }
 }
 
 export const BlockDragHandle = Extension.create({
@@ -223,23 +238,32 @@ export const BlockDragHandle = Extension.create({
             const node = state.doc.nodeAt(target.pos)
             if (!node) return
 
-            // Reuse the hovered block when it's already an empty paragraph,
-            // so clicking `+` on a blank line doesn't leave one stranded.
-            const reusable = node.type.name === 'paragraph' && node.content.size === 0
+            // Beside a list item, `+` belongs to that item — it adds the next
+            // bullet, rather than skipping past the whole list.
+            // The caret sits one level deeper for an item (li > paragraph).
+            const innerDepth = target.isItem ? 2 : 1
+
+            // Reuse the hovered block when it's already empty, so clicking `+`
+            // on a blank line doesn't leave one stranded.
+            const reusable = node.content.size === 0 || node.textContent === ''
 
             let caret: number
             if (reusable) {
-              caret = target.pos + 1
+              caret = target.pos + innerDepth
               view.dispatch(
                 state.tr.setSelection(TextSelection.near(state.doc.resolve(caret)))
               )
             } else {
-              const paragraph = state.schema.nodes.paragraph.createAndFill()
-              if (!paragraph) return
+              // Same node type for an item, so a bullet begets a bullet and a
+              // to-do begets a to-do.
+              const fresh = target.isItem
+                ? node.type.createAndFill()
+                : state.schema.nodes.paragraph.createAndFill()
+              if (!fresh) return
 
               const insertAt = target.pos + node.nodeSize
-              const tr = state.tr.insert(insertAt, paragraph)
-              caret = insertAt + 1
+              const tr = state.tr.insert(insertAt, fresh)
+              caret = insertAt + innerDepth
               tr.setSelection(TextSelection.near(tr.doc.resolve(caret)))
               view.dispatch(tr.scrollIntoView())
             }
