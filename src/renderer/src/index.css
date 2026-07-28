@@ -1,0 +1,405 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Width of the editor's left gutter, where block drag handles live.
+     Must stay >= the handle offset used in drag-handle.ts. */
+  --editor-gutter: 56px;
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.94 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.185 0 0);
+  --foreground: oklch(0.95 0 0);
+  --card: oklch(0.225 0 0);
+  --card-foreground: oklch(0.95 0 0);
+  --popover: oklch(0.235 0 0);
+  --popover-foreground: oklch(0.95 0 0);
+  --primary: oklch(0.95 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.28 0 0);
+  --secondary-foreground: oklch(0.95 0 0);
+  --muted: oklch(0.28 0 0);
+  --muted-foreground: oklch(0.68 0 0);
+  --accent: oklch(0.3 0 0);
+  --accent-foreground: oklch(0.95 0 0);
+  --destructive: oklch(0.65 0.19 25);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.55 0 0);
+  --sidebar: oklch(0.16 0 0);
+  --sidebar-foreground: oklch(0.95 0 0);
+  --sidebar-primary: oklch(0.95 0 0);
+  --sidebar-primary-foreground: oklch(0.205 0 0);
+  --sidebar-accent: oklch(0.28 0 0);
+  --sidebar-accent-foreground: oklch(0.95 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.55 0 0);
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family:
+      ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, system-ui, sans-serif;
+    font-synthesis-weight: none;
+    text-rendering: optimizeLegibility;
+    overflow: hidden;
+  }
+
+  /* A desktop app should not feel like a web page. Elements that are meant to
+     be dragged opt back in explicitly. */
+  * {
+    -webkit-user-drag: none;
+  }
+
+  [draggable='true'] {
+    -webkit-user-drag: element;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full border-[3px] border-solid border-transparent bg-clip-padding;
+    background-color: color-mix(in oklab, var(--muted-foreground) 35%, transparent);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklab, var(--muted-foreground) 55%, transparent);
+  }
+}
+
+@layer utilities {
+  /* Regions of the frameless macOS title bar that drag the window. */
+  .app-drag {
+    -webkit-app-region: drag;
+  }
+
+  .app-no-drag {
+    -webkit-app-region: no-drag;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Editor                                                                     */
+/* -------------------------------------------------------------------------- */
+
+.graphite-editor {
+  /* Anchors the absolutely positioned block controls. */
+  position: relative;
+
+  /* Stretch the box left over the gutter without moving the text, so the
+     controls sit *inside* the hover region. Otherwise the gap between the
+     handle and the text is dead space, and crossing it fires `mouseleave`
+     and hides the handle just as the pointer reaches for it. */
+  margin-left: calc(var(--editor-gutter) * -1);
+}
+
+.graphite-editor .tiptap {
+  outline: none;
+  min-height: 24rem;
+
+  /* The gutter belongs to the editor itself, not its wrapper. ProseMirror
+     registers its dragover/drop handlers on this element, so a block dragged
+     straight down the gutter still lands in the drop region — otherwise the
+     pointer has to swing right into the text column for a drop to register. */
+  padding-left: var(--editor-gutter);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Block drag handles                                                         */
+/* -------------------------------------------------------------------------- */
+
+.block-controls {
+  @apply pointer-events-none absolute z-20 flex items-center gap-0.5 opacity-0;
+  /* Only opacity animates: the handle must snap to the block under the
+     pointer, not slide toward it. */
+  transition: opacity 120ms ease;
+}
+
+.block-controls.is-visible {
+  @apply pointer-events-auto opacity-100;
+}
+
+.block-control {
+  @apply flex size-[22px] flex-none items-center justify-center rounded text-muted-foreground transition-colors;
+}
+
+.block-control:hover {
+  @apply bg-accent text-accent-foreground;
+}
+
+.block-control svg {
+  @apply size-4;
+}
+
+.block-grip {
+  cursor: grab;
+}
+
+.block-grip:active {
+  cursor: grabbing;
+}
+
+/* A block selected by clicking its grip. Deliberately just a faint wash — no
+   ring or border, which read as noise on a page of text. */
+.graphite-editor .tiptap .ProseMirror-selectednode {
+  @apply rounded-sm;
+  outline: none;
+  background-color: color-mix(in oklab, var(--foreground) 5%, transparent);
+}
+
+/* While a block is being dragged it gets no treatment at all: the drag ghost
+   is snapshotted from this element, so any highlight would be baked into the
+   image that follows the cursor. */
+.graphite-editor.is-block-dragging .tiptap .ProseMirror-selectednode {
+  background-color: transparent;
+}
+
+.graphite-editor .prosemirror-dropcursor-block {
+  border-radius: 9999px;
+}
+
+.graphite-editor .tiptap > * + * {
+  margin-top: 0.28em;
+}
+
+.graphite-editor .tiptap p {
+  @apply leading-7;
+  padding: 3px 2px;
+}
+
+.graphite-editor .tiptap h1 {
+  @apply mt-8 text-3xl font-bold tracking-tight;
+}
+
+.graphite-editor .tiptap h2 {
+  @apply mt-6 text-2xl font-semibold tracking-tight;
+}
+
+.graphite-editor .tiptap h3 {
+  @apply mt-5 text-xl font-semibold tracking-tight;
+}
+
+.graphite-editor .tiptap ul,
+.graphite-editor .tiptap ol {
+  @apply my-1 pl-6;
+}
+
+.graphite-editor .tiptap ul {
+  list-style: disc;
+}
+
+.graphite-editor .tiptap ol {
+  list-style: decimal;
+}
+
+.graphite-editor .tiptap li p {
+  padding: 1px 2px;
+}
+
+.graphite-editor .tiptap blockquote {
+  @apply my-2 border-l-[3px] pl-4 italic;
+  border-color: color-mix(in oklab, var(--foreground) 30%, transparent);
+}
+
+.graphite-editor .tiptap code {
+  @apply rounded bg-muted px-[0.35em] py-[0.15em] font-mono text-[0.87em];
+  color: oklch(0.55 0.19 15);
+}
+
+.dark .graphite-editor .tiptap code {
+  color: oklch(0.78 0.14 15);
+}
+
+.graphite-editor .tiptap pre {
+  @apply my-3 overflow-x-auto rounded-lg bg-muted p-4 font-mono text-sm;
+}
+
+.graphite-editor .tiptap pre code {
+  @apply bg-transparent p-0 text-inherit;
+  color: inherit;
+}
+
+.graphite-editor .tiptap hr {
+  @apply my-6 border-t;
+}
+
+.graphite-editor .tiptap a {
+  @apply cursor-pointer underline underline-offset-2;
+  text-decoration-color: color-mix(in oklab, var(--foreground) 40%, transparent);
+}
+
+.graphite-editor .tiptap mark {
+  @apply rounded px-0.5;
+  background-color: oklch(0.93 0.15 100);
+  color: oklch(0.2 0 0);
+}
+
+/* Task lists */
+.graphite-editor .tiptap ul[data-type='taskList'] {
+  @apply list-none pl-0;
+}
+
+.graphite-editor .tiptap ul[data-type='taskList'] li {
+  @apply flex items-start gap-2;
+}
+
+.graphite-editor .tiptap ul[data-type='taskList'] li > label {
+  @apply mt-[7px] flex-none select-none;
+}
+
+.graphite-editor .tiptap ul[data-type='taskList'] li > div {
+  @apply min-w-0 flex-1;
+}
+
+.graphite-editor .tiptap ul[data-type='taskList'] input[type='checkbox'] {
+  @apply size-4 cursor-pointer rounded border-input accent-current;
+}
+
+.graphite-editor .tiptap ul[data-type='taskList'] li[data-checked='true'] > div {
+  @apply text-muted-foreground line-through;
+}
+
+/* Placeholder on the focused empty block */
+.graphite-editor .tiptap p.is-empty::before {
+  @apply pointer-events-none float-left h-0 text-muted-foreground;
+  content: attr(data-placeholder);
+}
+
+/* Syntax highlighting (lowlight / highlight.js token classes) */
+.graphite-editor .hljs-comment,
+.graphite-editor .hljs-quote {
+  @apply text-muted-foreground italic;
+}
+
+.graphite-editor .hljs-keyword,
+.graphite-editor .hljs-selector-tag,
+.graphite-editor .hljs-literal,
+.graphite-editor .hljs-type {
+  color: oklch(0.55 0.2 300);
+}
+
+.dark .graphite-editor .hljs-keyword,
+.dark .graphite-editor .hljs-selector-tag,
+.dark .graphite-editor .hljs-literal,
+.dark .graphite-editor .hljs-type {
+  color: oklch(0.78 0.15 300);
+}
+
+.graphite-editor .hljs-string,
+.graphite-editor .hljs-regexp,
+.graphite-editor .hljs-addition {
+  color: oklch(0.55 0.15 145);
+}
+
+.dark .graphite-editor .hljs-string,
+.dark .graphite-editor .hljs-regexp,
+.dark .graphite-editor .hljs-addition {
+  color: oklch(0.78 0.14 145);
+}
+
+.graphite-editor .hljs-number,
+.graphite-editor .hljs-symbol,
+.graphite-editor .hljs-attr {
+  color: oklch(0.58 0.17 55);
+}
+
+.dark .graphite-editor .hljs-number,
+.dark .graphite-editor .hljs-symbol,
+.dark .graphite-editor .hljs-attr {
+  color: oklch(0.8 0.13 55);
+}
+
+.graphite-editor .hljs-title,
+.graphite-editor .hljs-function,
+.graphite-editor .hljs-name {
+  color: oklch(0.55 0.16 240);
+}
+
+.dark .graphite-editor .hljs-title,
+.dark .graphite-editor .hljs-function,
+.dark .graphite-editor .hljs-name {
+  color: oklch(0.78 0.13 240);
+}

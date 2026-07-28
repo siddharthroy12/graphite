@@ -1,0 +1,36 @@
+appId: com.graphite.app
+productName: Graphite
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - out/**
+  - package.json
+
+# better-sqlite3 ships a native .node binary, which cannot be loaded from inside
+# an asar archive.
+asarUnpack:
+  - node_modules/better-sqlite3/**
+
+mac:
+  category: public.app-category.productivity
+  target:
+    - dmg
+    - zip
+  # Local-only app with no signing identity configured by default.
+  identity: null
+
+win:
+  target:
+    - nsis
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+
+linux:
+  category: Office
+  target:
+    - AppImage
+    - deb
