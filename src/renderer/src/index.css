@@ -222,6 +222,14 @@
   cursor: grabbing;
 }
 
+/* While a block is in flight the pointer is usually over the editor, whose
+   contenteditable would otherwise show an I-beam. Applies to descendants too,
+   since the cursor is taken from the element actually under the pointer. */
+body.is-dragging-block,
+body.is-dragging-block * {
+  cursor: grabbing !important;
+}
+
 /* A block selected by clicking its grip. Deliberately just a faint wash — no
    ring or border, which read as noise on a page of text. */
 .graphite-editor .tiptap .ProseMirror-selectednode {
@@ -237,8 +245,11 @@
   background-color: transparent;
 }
 
-.graphite-editor .prosemirror-dropcursor-block {
+/* Drop indicator. Colour and thickness come from the Dropcursor extension in
+   Editor.tsx; this only softens the ends and lifts it above the text. */
+.graphite-dropcursor {
   border-radius: 9999px;
+  pointer-events: none;
 }
 
 .graphite-editor .tiptap > * + * {

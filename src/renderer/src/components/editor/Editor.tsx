@@ -47,7 +47,11 @@ export function Editor({
         StarterKit.configure({
           // Replaced below with the syntax-highlighting version.
           codeBlock: false,
-          heading: { levels: [1, 2, 3] }
+          heading: { levels: [1, 2, 3] },
+          // The line showing where a dragged block will land. Set explicitly
+          // rather than left to the 1px `currentColor` default, which is
+          // nearly invisible against body text.
+          dropcursor: { color: '#2f6fa8', width: 4, class: 'graphite-dropcursor' }
         }),
         CodeBlockLowlight.configure({ lowlight }),
         Underline,

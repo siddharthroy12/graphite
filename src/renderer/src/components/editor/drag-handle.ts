@@ -208,6 +208,9 @@ export const BlockDragHandle = Extension.create({
             // Must precede the dispatch below: the selection styling would
             // otherwise be applied before the drag image is snapshotted.
             wrapper.classList.add('is-block-dragging')
+            // On the body, not the editor: the pointer can leave the editor
+            // mid-drag and the cursor should not revert.
+            document.body.classList.add('is-dragging-block')
 
             const selection = NodeSelection.create(view.state.doc, target.pos)
             view.dispatch(view.state.tr.setSelection(selection))
@@ -235,6 +238,7 @@ export const BlockDragHandle = Extension.create({
             locked = false
             view.dragging = null
             wrapper.classList.remove('is-block-dragging')
+            document.body.classList.remove('is-dragging-block')
           }
 
           const onGripMouseDown = (): void => {
@@ -336,6 +340,7 @@ export const BlockDragHandle = Extension.create({
               grip.removeEventListener('click', onGripClick)
               addButton.removeEventListener('click', onAddClick)
               wrapper.classList.remove('is-block-dragging')
+              document.body.classList.remove('is-dragging-block')
               controls.remove()
             }
           }
