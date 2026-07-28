@@ -41,6 +41,20 @@ npm run dist:mac
 `dist:win` and `dist:linux` are also available. Packaging is unsigned by
 default — set a signing identity in `electron-builder.yml` before distributing.
 
+## Icon
+
+`build/icon.svg` is the source: three stacked sheets, for graphite's layered
+carbon and for a stack of pages. The platform containers next to it
+(`icon.icns`, `icon.ico`, `icon.png`) are committed and picked up automatically
+by electron-builder. After editing the SVG, regenerate them with:
+
+```bash
+npm run icons
+```
+
+That rasterises via the project's own Electron and builds the containers with
+`sips`/`iconutil`, so there's no image library to install — macOS only.
+
 ## Features
 
 - **Tabs** — open several pages at once, each with its own back/forward

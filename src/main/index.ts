@@ -52,6 +52,11 @@ function createWindow(): BrowserWindow {
     title: 'Graphite',
     backgroundColor: '#ffffff',
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    // Packaged builds get their icon from electron-builder; macOS always takes
+    // it from the bundle. This is only for the dev window on Windows/Linux.
+    ...(isDev && process.platform !== 'darwin'
+      ? { icon: join(import.meta.dirname, '../../build/icon.png') }
+      : {}),
     trafficLightPosition: {
       x: 16,
       y: (TITLE_BAR_HEIGHT - TRAFFIC_LIGHT_DIAMETER) / 2 - TRAFFIC_LIGHT_NUDGE
