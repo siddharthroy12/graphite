@@ -73,6 +73,26 @@ function contentLeftOf(view: EditorView): number {
   return rect.left + gutter
 }
 
+/** Right edge of the text column; anything past it is the right margin. */
+function contentRightOf(view: EditorView): number {
+  return view.dom.getBoundingClientRect().right
+}
+
+/**
+ * The scrollable page area around the editor. Marquee mousedowns are caught
+ * here rather than on the editor itself, so the left and right margins beside
+ * the content column — which fall outside the editor box — can start one.
+ */
+function scrollHostOf(start: HTMLElement): HTMLElement {
+  let el: HTMLElement | null = start.parentElement
+  while (el) {
+    const overflowY = window.getComputedStyle(el).overflowY
+    if (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') return el
+    el = el.parentElement
+  }
+  return start
+}
+
 export const BlockSelection = Extension.create({
   name: 'blockSelection',
 
@@ -96,6 +116,8 @@ export const BlockSelection = Extension.create({
           for (const stale of wrapper.querySelectorAll('.block-marquee')) stale.remove()
           wrapper.appendChild(marquee)
 
+          const scrollHost = scrollHostOf(wrapper)
+
           let origin: { x: number; y: number } | null = null
           let active = false
 
@@ -106,8 +128,16 @@ export const BlockSelection = Extension.create({
             // The block handles own their own gestures.
             if (el instanceof Element && el.closest('.block-controls')) return false
 
-            if (event.clientX < contentLeftOf(view)) return true
+            const editorRect = view.dom.getBoundingClientRect()
 
+            // Either margin beside the content, at the height of the blocks.
+            const inRows = event.clientY >= editorRect.top && event.clientY <= editorRect.bottom
+            if (inRows) {
+              if (event.clientX < contentLeftOf(view)) return true
+              if (event.clientX > contentRightOf(view)) return true
+            }
+
+            // Empty space below the content.
             const last = view.dom.lastElementChild
             return !!last && event.clientY > last.getBoundingClientRect().bottom
           }
@@ -193,13 +223,13 @@ export const BlockSelection = Extension.create({
             document.body.classList.remove('is-selecting-blocks')
           }
 
-          wrapper.addEventListener('mousedown', onMouseDown)
+          scrollHost.addEventListener('mousedown', onMouseDown)
           window.addEventListener('mousemove', onMouseMove)
           window.addEventListener('mouseup', finish)
 
           return {
             destroy: () => {
-              wrapper.removeEventListener('mousedown', onMouseDown)
+              scrollHost.removeEventListener('mousedown', onMouseDown)
               window.removeEventListener('mousemove', onMouseMove)
               window.removeEventListener('mouseup', finish)
               document.body.classList.remove('is-selecting-blocks')

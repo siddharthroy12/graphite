@@ -260,9 +260,8 @@ body.is-dragging-block * {
 /* -------------------------------------------------------------------------- */
 
 .block-marquee {
-  @apply pointer-events-none absolute z-25 hidden rounded-md;
+  @apply pointer-events-none absolute z-25 hidden;
   background-color: color-mix(in oklab, #2f6fa8 16%, transparent);
-  border: 1px solid color-mix(in oklab, #2f6fa8 40%, transparent);
 }
 
 .block-marquee.is-active {
