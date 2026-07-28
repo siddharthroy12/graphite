@@ -255,6 +255,38 @@ body.is-dragging-block * {
   @apply opacity-100;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Multi-block selection                                                      */
+/* -------------------------------------------------------------------------- */
+
+.block-marquee {
+  @apply pointer-events-none absolute z-25 hidden rounded-md;
+  background-color: color-mix(in oklab, #2f6fa8 16%, transparent);
+  border: 1px solid color-mix(in oklab, #2f6fa8 40%, transparent);
+}
+
+.block-marquee.is-active {
+  @apply block;
+}
+
+/* Whole blocks tint edge to edge rather than showing a ragged text highlight. */
+.graphite-editor .tiptap .block-selected {
+  @apply rounded;
+  background-color: color-mix(in oklab, #2f6fa8 30%, transparent);
+}
+
+/* The native highlight underneath would otherwise show through the tint. */
+.graphite-editor .tiptap .block-selected ::selection,
+.graphite-editor .tiptap .block-selected::selection {
+  background-color: transparent;
+}
+
+/* No I-beam while lassoing. */
+body.is-selecting-blocks,
+body.is-selecting-blocks * {
+  cursor: default !important;
+}
+
 /* ProseMirror's own cursor, still used when dragging a text selection. */
 .graphite-dropcursor {
   border-radius: 9999px;

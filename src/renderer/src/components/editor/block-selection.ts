@@ -1,0 +1,213 @@
+import { Extension } from '@tiptap/core'
+import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
+import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view'
+
+/**
+ * Notion-style multi-block selection.
+ *
+ * Two halves:
+ *
+ * - A marquee. Dragging from the left gutter or from the empty space below the
+ *   content draws a rectangle and selects every block it crosses. Starting
+ *   inside the text is left alone, so ordinary text selection still works.
+ * - The look. Once a selection covers whole blocks, each one is tinted edge to
+ *   edge rather than showing a ragged text highlight, and the native
+ *   `::selection` is suppressed underneath.
+ *
+ * The selection itself stays a plain ProseMirror TextSelection, so delete,
+ * copy and paste keep working without special cases.
+ */
+
+const key = new PluginKey('blockSelection')
+
+/** Pointer travel before a press becomes a marquee, so clicks still register. */
+const MARQUEE_THRESHOLD = 4
+
+/**
+ * Top-level blocks the selection covers, and whether the highlight should be
+ * drawn — a partial selection inside one block stays a normal text highlight.
+ */
+function coveredBlocks(state: {
+  doc: import('@tiptap/pm/model').Node
+  selection: { from: number; to: number; empty: boolean }
+}): Array<{ start: number; end: number }> {
+  const { selection, doc } = state
+  if (selection.empty) return []
+
+  const blocks: Array<{ start: number; end: number }> = []
+  doc.forEach((node, offset) => {
+    const start = offset
+    const end = offset + node.nodeSize
+    if (end > selection.from && start < selection.to) blocks.push({ start, end })
+  })
+
+  if (blocks.length > 1) return blocks
+
+  // Exactly one block: only treat it as a block selection when the whole of it
+  // is covered, so dragging across a few words keeps the usual highlight.
+  if (blocks.length === 1) {
+    const [only] = blocks
+    const whole = selection.from <= only.start + 1 && selection.to >= only.end - 1
+    return whole ? blocks : []
+  }
+
+  return []
+}
+
+function decorationsFor(state: Parameters<typeof coveredBlocks>[0]): DecorationSet | null {
+  const blocks = coveredBlocks(state)
+  if (blocks.length === 0) return null
+
+  return DecorationSet.create(
+    state.doc,
+    blocks.map(({ start, end }) =>
+      Decoration.node(start, end, { class: 'block-selected' })
+    )
+  )
+}
+
+/** Left edge of the text column; anything left of it is the handle gutter. */
+function contentLeftOf(view: EditorView): number {
+  const rect = view.dom.getBoundingClientRect()
+  const gutter = parseFloat(window.getComputedStyle(view.dom).paddingLeft) || 0
+  return rect.left + gutter
+}
+
+export const BlockSelection = Extension.create({
+  name: 'blockSelection',
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key,
+
+        props: {
+          decorations: (state) => decorationsFor(state)
+        },
+
+        view: (view) => {
+          const wrapper = view.dom.closest<HTMLElement>('.graphite-editor')
+          if (!wrapper) return {}
+
+          const marquee = document.createElement('div')
+          marquee.className = 'block-marquee'
+          marquee.setAttribute('contenteditable', 'false')
+
+          for (const stale of wrapper.querySelectorAll('.block-marquee')) stale.remove()
+          wrapper.appendChild(marquee)
+
+          let origin: { x: number; y: number } | null = null
+          let active = false
+
+          /** True where a drag should lasso blocks rather than select text. */
+          const canStart = (event: MouseEvent): boolean => {
+            if (event.button !== 0) return false
+            const el = event.target
+            // The block handles own their own gestures.
+            if (el instanceof Element && el.closest('.block-controls')) return false
+
+            if (event.clientX < contentLeftOf(view)) return true
+
+            const last = view.dom.lastElementChild
+            return !!last && event.clientY > last.getBoundingClientRect().bottom
+          }
+
+          const selectWithin = (top: number, bottom: number): void => {
+            const rows = Array.from(view.dom.children).filter((el) => {
+              const rect = el.getBoundingClientRect()
+              return rect.bottom > top && rect.top < bottom
+            })
+            if (rows.length === 0) return
+
+            const posOf = (el: Element): number | null => {
+              try {
+                return view.posAtDOM(el, 0) - 1
+              } catch {
+                return null
+              }
+            }
+
+            const firstPos = posOf(rows[0])
+            const lastPos = posOf(rows[rows.length - 1])
+            if (firstPos === null || lastPos === null) return
+
+            const lastNode = view.state.doc.nodeAt(lastPos)
+            if (!lastNode) return
+
+            const { doc } = view.state
+            // `between` snaps to valid text positions, so a list or other
+            // non-textblock at either end doesn't produce an invalid selection.
+            const selection = TextSelection.between(
+              doc.resolve(firstPos + 1),
+              doc.resolve(lastPos + lastNode.nodeSize - 1)
+            )
+
+            if (!selection.eq(view.state.selection)) {
+              view.dispatch(view.state.tr.setSelection(selection))
+            }
+          }
+
+          const draw = (event: MouseEvent): void => {
+            if (!origin) return
+            const wrapperRect = wrapper.getBoundingClientRect()
+            const top = Math.min(origin.y, event.clientY)
+            const bottom = Math.max(origin.y, event.clientY)
+            const left = Math.min(origin.x, event.clientX)
+            const right = Math.max(origin.x, event.clientX)
+
+            marquee.style.top = `${top - wrapperRect.top}px`
+            marquee.style.left = `${left - wrapperRect.left}px`
+            marquee.style.width = `${right - left}px`
+            marquee.style.height = `${bottom - top}px`
+
+            selectWithin(top, bottom)
+          }
+
+          const onMouseDown = (event: MouseEvent): void => {
+            if (!canStart(event)) return
+            origin = { x: event.clientX, y: event.clientY }
+          }
+
+          const onMouseMove = (event: MouseEvent): void => {
+            if (!origin) return
+
+            if (!active) {
+              const moved =
+                Math.abs(event.clientX - origin.x) + Math.abs(event.clientY - origin.y)
+              if (moved < MARQUEE_THRESHOLD) return
+              active = true
+              marquee.classList.add('is-active')
+              document.body.classList.add('is-selecting-blocks')
+            }
+
+            // Only now, so a plain click below the content still places a caret.
+            event.preventDefault()
+            draw(event)
+          }
+
+          const finish = (): void => {
+            origin = null
+            if (!active) return
+            active = false
+            marquee.classList.remove('is-active')
+            document.body.classList.remove('is-selecting-blocks')
+          }
+
+          wrapper.addEventListener('mousedown', onMouseDown)
+          window.addEventListener('mousemove', onMouseMove)
+          window.addEventListener('mouseup', finish)
+
+          return {
+            destroy: () => {
+              wrapper.removeEventListener('mousedown', onMouseDown)
+              window.removeEventListener('mousemove', onMouseMove)
+              window.removeEventListener('mouseup', finish)
+              document.body.classList.remove('is-selecting-blocks')
+              marquee.remove()
+            }
+          }
+        }
+      })
+    ]
+  }
+})

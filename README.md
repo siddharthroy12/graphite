@@ -73,6 +73,9 @@ That rasterises via the project's own Electron and builds the containers with
 - **Draggable blocks** — hover any block for controls in the left gutter: the
   grip reorders it (click to select, drag to move), and `+` inserts a block
   below. List and to-do items get their own handle so they move individually.
+- **Multi-block selection** — drag from the left gutter or the space below the
+  content to lasso whole blocks; the selection acts as one for delete, copy,
+  and paste.
 - **Full-text search** — `Cmd/Ctrl + K`, backed by SQLite FTS5 with prefix
   matching and result snippets.
 - **Favorites**, per-page emoji icons, and breadcrumb navigation.

@@ -12,6 +12,7 @@ import { createLowlight, common } from 'lowlight'
 import { FormattingMenu } from './FormattingMenu'
 import { SlashCommand } from './slash-command'
 import { BlockDragHandle } from './drag-handle'
+import { BlockSelection } from './block-selection'
 
 const lowlight = createLowlight(common)
 
@@ -70,7 +71,8 @@ export function Editor({
           showOnlyCurrent: true
         }),
         SlashCommand,
-        BlockDragHandle
+        BlockDragHandle,
+        BlockSelection
       ],
       content: parseContent(initialContent),
       autofocus: false,
