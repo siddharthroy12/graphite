@@ -43,8 +43,8 @@ default — set a signing identity in `electron-builder.yml` before distributing
 
 ## Icon
 
-`build/icon.svg` is the source: three stacked sheets, for graphite's layered
-carbon and for a stack of pages. The platform containers next to it
+`build/icon.svg` is the source: a carbon ring, the hexagonal structure graphite
+is named for. The platform containers next to it
 (`icon.icns`, `icon.ico`, `icon.png`) are committed and picked up automatically
 by electron-builder. After editing the SVG, regenerate them with:
 

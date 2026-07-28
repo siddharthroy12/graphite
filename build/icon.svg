@@ -1,76 +1,43 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <!--
-    Graphite's app mark: three stacked sheets.
+    Graphite's app mark: a carbon ring.
 
-    Graphite is carbon in layered sheets, and the app is a stack of pages — the
-    same shape says both. Kept to one silhouette with high contrast against the
-    tile so it still reads at 16px.
+    Graphite is carbon in hexagonal rings, so six atoms and their bonds are the
+    literal thing the app is named after. Pointy-top hexagon (vertical left and
+    right bonds), drawn as one high-contrast shape so it still reads at 16px.
+
+    Geometry: circumradius 250 about (512, 512). In a regular hexagon the side
+    equals the circumradius, so every bond spans the same 250 units and each is
+    inset 62 at both ends — the atom radius (52) plus a 10 unit gap.
   -->
   <defs>
-    <linearGradient id="tile" x1="0" y1="0" x2="0.35" y2="1">
-      <stop offset="0" stop-color="#43454f" />
-      <stop offset="0.55" stop-color="#26272e" />
-      <stop offset="1" stop-color="#141419" />
-    </linearGradient>
-
-    <!-- Light catching the top-left edge, as on a physical tile. -->
-    <linearGradient id="rim" x1="0" y1="0" x2="0.6" y2="1">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22" />
-      <stop offset="0.4" stop-color="#ffffff" stop-opacity="0.04" />
-      <stop offset="1" stop-color="#ffffff" stop-opacity="0" />
-    </linearGradient>
-
-    <radialGradient id="sheen" cx="0.32" cy="0.16" r="0.85">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.14" />
-      <stop offset="1" stop-color="#ffffff" stop-opacity="0" />
-    </radialGradient>
-
-    <linearGradient id="faceTop" x1="0.15" y1="0" x2="0.85" y2="1">
+    <linearGradient id="tile" x1="0" y1="0" x2="0.2" y2="1">
       <stop offset="0" stop-color="#ffffff" />
-      <stop offset="1" stop-color="#c3c6d6" />
+      <stop offset="1" stop-color="#f1f1f4" />
     </linearGradient>
-    <linearGradient id="faceMid" x1="0.15" y1="0" x2="0.85" y2="1">
-      <stop offset="0" stop-color="#c9ccdb" />
-      <stop offset="1" stop-color="#9296a8" />
-    </linearGradient>
-    <linearGradient id="faceLow" x1="0.15" y1="0" x2="0.85" y2="1">
-      <stop offset="0" stop-color="#9a9eb0" />
-      <stop offset="1" stop-color="#6b6f80" />
-    </linearGradient>
-
-    <filter id="drop" x="-30%" y="-30%" width="160%" height="160%">
-      <feDropShadow dx="0" dy="16" stdDeviation="26" flood-color="#000000" flood-opacity="0.45" />
-    </filter>
   </defs>
 
-  <!-- Tile -->
   <rect x="64" y="64" width="896" height="896" rx="202" fill="url(#tile)" />
-  <rect x="64" y="64" width="896" height="896" rx="202" fill="url(#sheen)" />
   <rect
-    x="68" y="68" width="888" height="888" rx="198"
-    fill="none" stroke="url(#rim)" stroke-width="8"
+    x="66" y="66" width="892" height="892" rx="200"
+    fill="none" stroke="#000000" stroke-opacity="0.06" stroke-width="4"
   />
 
-  <g filter="url(#drop)">
-    <!-- Bottom sheet -->
-    <path d="M 512 506 L 712 594 L 512 682 L 312 594 Z" fill="url(#faceLow)" />
-    <path
-      d="M 312 594 L 512 682 L 712 594 L 712 620 L 512 708 L 312 620 Z"
-      fill="#4c4f5d"
-    />
+  <g stroke="#17171a" stroke-width="26" stroke-linecap="round">
+    <line x1="565.69" y1="293.00" x2="674.81" y2="356.00" />
+    <line x1="728.51" y1="449.00" x2="728.51" y2="575.00" />
+    <line x1="674.81" y1="668.00" x2="565.69" y2="731.00" />
+    <line x1="458.31" y1="731.00" x2="349.19" y2="668.00" />
+    <line x1="295.49" y1="575.00" x2="295.49" y2="449.00" />
+    <line x1="349.19" y1="356.00" x2="458.31" y2="293.00" />
+  </g>
 
-    <!-- Middle sheet -->
-    <path d="M 512 414 L 712 502 L 512 590 L 312 502 Z" fill="url(#faceMid)" />
-    <path
-      d="M 312 502 L 512 590 L 712 502 L 712 528 L 512 616 L 312 528 Z"
-      fill="#63677a"
-    />
-
-    <!-- Top sheet -->
-    <path d="M 512 322 L 712 410 L 512 498 L 312 410 Z" fill="url(#faceTop)" />
-    <path
-      d="M 312 410 L 512 498 L 712 410 L 712 436 L 512 524 L 312 436 Z"
-      fill="#8e93a6"
-    />
+  <g fill="#17171a">
+    <circle cx="512.00" cy="262.00" r="52" />
+    <circle cx="728.51" cy="387.00" r="52" />
+    <circle cx="728.51" cy="637.00" r="52" />
+    <circle cx="512.00" cy="762.00" r="52" />
+    <circle cx="295.49" cy="637.00" r="52" />
+    <circle cx="295.49" cy="387.00" r="52" />
   </g>
 </svg>
