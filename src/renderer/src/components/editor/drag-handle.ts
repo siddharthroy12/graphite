@@ -30,45 +30,61 @@ interface HoverTarget {
   dom: HTMLElement
 }
 
-function resolveTarget(view: EditorView, clientY: number): HoverTarget | null {
-  const editorRect = view.dom.getBoundingClientRect()
-  // The editor's left padding is the drag-handle gutter; probing inside it
-  // would sample empty space rather than the block's text.
-  const gutter = parseFloat(window.getComputedStyle(view.dom).paddingLeft) || 0
+const isList = (el: Element): boolean => el.tagName === 'UL' || el.tagName === 'OL'
 
-  // The pointer is usually in that gutter, so probe at the start of the text
-  // at the pointer's height instead of at the pointer's own x.
-  const found = view.posAtCoords({ left: editorRect.left + gutter + 8, top: clientY })
-  if (!found) return null
-
-  // `found.pos` sits inside the block; `found.inside` is the position *before*
-  // the containing node, which resolves to depth 0 for a top-level block.
-  const $pos = view.state.doc.resolve(found.pos)
-
-  let pos: number
-  let isItem = false
-
-  if ($pos.depth === 0) {
-    if (found.inside < 0) return null
-    pos = found.inside
-  } else {
-    // Innermost list item wins, so each bullet is its own handle; otherwise
-    // fall back to the top-level block at depth 1.
-    let depth = 1
-    for (let d = $pos.depth; d >= 1; d--) {
-      if (ITEM_NODES.has($pos.node(d).type.name)) {
-        depth = d
-        isItem = true
-        break
-      }
-    }
-    pos = $pos.before(depth)
+/**
+ * The block-level element under `clientY`, descending into list items so each
+ * one gets its own handle at any nesting depth.
+ *
+ * This hit-tests the DOM by row rather than asking `posAtCoords` for a point:
+ * a probe x has to be guessed, and any guess lands in empty space for some
+ * block (a list's bullet gutter, an empty paragraph), which resolves to a
+ * neighbouring block and makes the handle jump between rows.
+ */
+function blockElementAt(view: EditorView, clientY: number): HTMLElement | null {
+  const spans = (el: Element): boolean => {
+    const rect = el.getBoundingClientRect()
+    return clientY >= rect.top && clientY <= rect.bottom
   }
 
-  const dom = view.nodeDOM(pos)
-  if (!(dom instanceof HTMLElement)) return null
+  const first = Array.from(view.dom.children).find(spans)
+  if (!first) return null
 
-  return { pos, isItem, dom }
+  let el: Element = first
+  while (isList(el)) {
+    const item: Element | undefined = Array.from(el.children).find(spans)
+    if (!item) break
+    // Keep descending only if a nested list — not the item's own text — is
+    // what sits under the pointer.
+    const nested: Element | undefined = Array.from(item.children).find(
+      (child) => isList(child) && spans(child)
+    )
+    if (!nested) {
+      el = item
+      break
+    }
+    el = nested
+  }
+
+  return el instanceof HTMLElement ? el : null
+}
+
+function resolveTarget(view: EditorView, clientY: number): HoverTarget | null {
+  const dom = blockElementAt(view, clientY)
+  if (!dom) return null
+
+  let pos: number
+  try {
+    // `posAtDOM(el, 0)` lands just inside the node; step back to the node.
+    pos = view.posAtDOM(dom, 0) - 1
+  } catch {
+    return null
+  }
+
+  const node = view.state.doc.nodeAt(pos)
+  if (!node) return null
+
+  return { pos, isItem: ITEM_NODES.has(node.type.name), dom }
 }
 
 export const BlockDragHandle = Extension.create({
@@ -152,8 +168,15 @@ export const BlockDragHandle = Extension.create({
             const lineHeight = parseFloat(style.lineHeight) || 24
             const offset = paddingTop + Math.max(0, (lineHeight - HANDLE_SIZE) / 2)
 
+            // Fixed column in the gutter. Anchoring to the block's own left
+            // edge instead would push the handle right on an indented list
+            // item — over the content — and make it jump sideways as the
+            // pointer crosses between nested and top-level blocks.
+            const editorRect = view.dom.getBoundingClientRect()
+            const gutter = parseFloat(window.getComputedStyle(view.dom).paddingLeft) || 0
+
             controls.style.top = `${blockRect.top - wrapperRect.top + offset}px`
-            controls.style.left = `${blockRect.left - wrapperRect.left - GUTTER_OFFSET}px`
+            controls.style.left = `${editorRect.left - wrapperRect.left + gutter - GUTTER_OFFSET}px`
             controls.classList.add('is-visible')
           }
 
