@@ -128,16 +128,12 @@ export const BlockSelection = Extension.create({
             // The block handles own their own gestures.
             if (el instanceof Element && el.closest('.block-controls')) return false
 
-            const editorRect = view.dom.getBoundingClientRect()
+            // Either margin beside the content, at any height — so a box can
+            // begin above the first block, not only alongside it.
+            if (event.clientX < contentLeftOf(view)) return true
+            if (event.clientX > contentRightOf(view)) return true
 
-            // Either margin beside the content, at the height of the blocks.
-            const inRows = event.clientY >= editorRect.top && event.clientY <= editorRect.bottom
-            if (inRows) {
-              if (event.clientX < contentLeftOf(view)) return true
-              if (event.clientX > contentRightOf(view)) return true
-            }
-
-            // Empty space below the content.
+            // Empty space below the content, within the column's width.
             const last = view.dom.lastElementChild
             return !!last && event.clientY > last.getBoundingClientRect().bottom
           }
