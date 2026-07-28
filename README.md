@@ -1,4 +1,8 @@
-# Graphite
+<p align="center">
+  <img src="build/icon.png" alt="Graphite app icon" width="128" height="128">
+</p>
+
+<h1 align="center">Graphite</h1>
 
 A local-only, Notion-style workspace for the desktop. Nested pages, a block
 editor, and full-text search — all stored in a single SQLite file on your
