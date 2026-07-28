@@ -8,7 +8,8 @@
 
     Geometry: circumradius 250 about (512, 512). In a regular hexagon the side
     equals the circumradius, so every bond spans the same 250 units and each is
-    inset 62 at both ends — the atom radius (52) plus a 10 unit gap.
+    inset 62 at both ends — the atom radius (52) plus a 10 unit gap. Bonds are
+    flat-ended (butt caps), so that gap stays open between bond and atom.
   -->
   <defs>
     <linearGradient id="tile" x1="0" y1="0" x2="0.2" y2="1">
@@ -23,7 +24,7 @@
     fill="none" stroke="#000000" stroke-opacity="0.06" stroke-width="4"
   />
 
-  <g stroke="#17171a" stroke-width="26" stroke-linecap="round">
+  <g stroke="#17171a" stroke-width="26" stroke-linecap="butt">
     <line x1="565.69" y1="293.00" x2="674.81" y2="356.00" />
     <line x1="728.51" y1="449.00" x2="728.51" y2="575.00" />
     <line x1="674.81" y1="668.00" x2="565.69" y2="731.00" />
