@@ -106,8 +106,8 @@ export const BlockDragHandle = Extension.create({
           const addButton = document.createElement('button')
           addButton.type = 'button'
           addButton.className = 'block-control'
-          addButton.title = 'Insert a block below'
-          addButton.setAttribute('aria-label', 'Insert a block below')
+          addButton.title = 'Add a block below'
+          addButton.setAttribute('aria-label', 'Add a block below')
           addButton.innerHTML =
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>'
 
@@ -221,20 +221,46 @@ export const BlockDragHandle = Extension.create({
             view.focus()
           }
 
+          /**
+           * Opens the block picker on a fresh block below the hovered one.
+           *
+           * The picker is the `/` suggestion plugin, so rather than duplicating
+           * its list this puts the caret on an empty block and types the `/`
+           * for the user — one implementation of the menu, and the typed and
+           * clicked routes can't drift apart.
+           */
           const onAddClick = (): void => {
             if (!target) return
             const { state } = view
             const node = state.doc.nodeAt(target.blockPos)
             if (!node) return
 
-            const insertAt = target.blockPos + node.nodeSize
-            const paragraph = state.schema.nodes.paragraph.createAndFill()
-            if (!paragraph) return
+            // Reuse the hovered block when it's already an empty paragraph,
+            // so clicking `+` on a blank line doesn't leave one stranded.
+            const reusable = node.type.name === 'paragraph' && node.content.size === 0
 
-            const tr = state.tr.insert(insertAt, paragraph)
-            tr.setSelection(TextSelection.near(tr.doc.resolve(insertAt)))
-            view.dispatch(tr.scrollIntoView())
+            let caret: number
+            if (reusable) {
+              caret = target.blockPos + 1
+              view.dispatch(
+                state.tr.setSelection(TextSelection.near(state.doc.resolve(caret)))
+              )
+            } else {
+              const paragraph = state.schema.nodes.paragraph.createAndFill()
+              if (!paragraph) return
+
+              const insertAt = target.blockPos + node.nodeSize
+              const tr = state.tr.insert(insertAt, paragraph)
+              caret = insertAt + 1
+              tr.setSelection(TextSelection.near(tr.doc.resolve(caret)))
+              view.dispatch(tr.scrollIntoView())
+            }
+
             view.focus()
+            // Dispatched separately: the suggestion plugin matches against the
+            // state left by the transaction before it.
+            view.dispatch(view.state.tr.insertText('/'))
+            hide()
           }
 
           // Keeps the editor focused (and the caret put) when `+` is pressed.
