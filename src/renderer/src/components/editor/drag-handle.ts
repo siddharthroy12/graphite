@@ -12,18 +12,16 @@ import type { EditorView } from '@tiptap/pm/view'
  * which lets ProseMirror render the drop cursor and perform the move.
  */
 
-/** Nodes that get their own handle rather than deferring to their container. */
-const ITEM_NODES = new Set(['listItem', 'taskItem'])
-
 /** Horizontal gap between the controls and the block they belong to. */
 const GUTTER_OFFSET = 50
 const HANDLE_SIZE = 22
 
 interface HoverTarget {
-  /** Position of the node the grip drags — a list item, or the whole block. */
-  dragPos: number
-  /** Position of the enclosing top-level block, where `+` inserts. */
-  blockPos: number
+  /**
+   * Position of the top-level block. Handles are per block, not per line, so a
+   * list is one draggable unit rather than one per item.
+   */
+  pos: number
   dom: HTMLElement
 }
 
@@ -42,30 +40,20 @@ function resolveTarget(view: EditorView, clientY: number): HoverTarget | null {
   // the containing node, which resolves to depth 0 for a top-level block.
   const $pos = view.state.doc.resolve(found.pos)
 
-  let dragPos: number
-  let blockPos: number
-
+  // Depth 1 is the top-level block, so nested content (a list item, a
+  // paragraph inside a quote) resolves to its container.
+  let pos: number
   if ($pos.depth === 0) {
     if (found.inside < 0) return null
-    dragPos = found.inside
-    blockPos = found.inside
+    pos = found.inside
   } else {
-    // Prefer the innermost list item so items move individually.
-    let dragDepth = 1
-    for (let depth = $pos.depth; depth >= 1; depth--) {
-      if (ITEM_NODES.has($pos.node(depth).type.name)) {
-        dragDepth = depth
-        break
-      }
-    }
-    dragPos = $pos.before(dragDepth)
-    blockPos = $pos.before(1)
+    pos = $pos.before(1)
   }
 
-  const dom = view.nodeDOM(dragPos)
+  const dom = view.nodeDOM(pos)
   if (!(dom instanceof HTMLElement)) return null
 
-  return { dragPos, blockPos, dom }
+  return { pos, dom }
 }
 
 export const BlockDragHandle = Extension.create({
@@ -176,7 +164,7 @@ export const BlockDragHandle = Extension.create({
             // otherwise be applied before the drag image is snapshotted.
             wrapper.classList.add('is-block-dragging')
 
-            const selection = NodeSelection.create(view.state.doc, target.dragPos)
+            const selection = NodeSelection.create(view.state.doc, target.pos)
             view.dispatch(view.state.tr.setSelection(selection))
 
             const slice = view.state.selection.content()
@@ -216,7 +204,7 @@ export const BlockDragHandle = Extension.create({
           const onGripClick = (): void => {
             if (!target) return
             view.dispatch(
-              view.state.tr.setSelection(NodeSelection.create(view.state.doc, target.dragPos))
+              view.state.tr.setSelection(NodeSelection.create(view.state.doc, target.pos))
             )
             view.focus()
           }
@@ -232,7 +220,7 @@ export const BlockDragHandle = Extension.create({
           const onAddClick = (): void => {
             if (!target) return
             const { state } = view
-            const node = state.doc.nodeAt(target.blockPos)
+            const node = state.doc.nodeAt(target.pos)
             if (!node) return
 
             // Reuse the hovered block when it's already an empty paragraph,
@@ -241,7 +229,7 @@ export const BlockDragHandle = Extension.create({
 
             let caret: number
             if (reusable) {
-              caret = target.blockPos + 1
+              caret = target.pos + 1
               view.dispatch(
                 state.tr.setSelection(TextSelection.near(state.doc.resolve(caret)))
               )
@@ -249,7 +237,7 @@ export const BlockDragHandle = Extension.create({
               const paragraph = state.schema.nodes.paragraph.createAndFill()
               if (!paragraph) return
 
-              const insertAt = target.blockPos + node.nodeSize
+              const insertAt = target.pos + node.nodeSize
               const tr = state.tr.insert(insertAt, paragraph)
               caret = insertAt + 1
               tr.setSelection(TextSelection.near(tr.doc.resolve(caret)))
