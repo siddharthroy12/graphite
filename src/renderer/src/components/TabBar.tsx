@@ -105,31 +105,37 @@ export function TabBar({ onRequestDelete }: TabBarProps): React.JSX.Element {
         </Button>
       </div>
 
-      <div className="app-no-drag flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-        {tabs.map((tab, index) => (
-          <TabItem
-            key={tab.id}
-            tab={tab}
-            index={index}
-            active={tab.id === activeTabId}
-            node={tab.pageId ? findNode(tree, tab.pageId) : null}
-            closable={tabs.length > 1}
-            onSelect={() => selectTab(tab.id)}
-            onClose={() => closeTab(tab.id)}
-            onMove={moveTab}
-          />
-        ))}
+      {/* Outer stays draggable: with few tabs there's real empty bar space here
+          that should behave like the rest of the tab bar, not like a tab.
+          Only the inner row — sized to its actual content — opts out, so the
+          tabs and the + button stay clickable and draggable individually. */}
+      <div className="app-drag flex min-w-0 flex-1 items-center gap-1">
+        <div className="app-no-drag flex min-w-0 items-center gap-1 overflow-x-auto">
+          {tabs.map((tab, index) => (
+            <TabItem
+              key={tab.id}
+              tab={tab}
+              index={index}
+              active={tab.id === activeTabId}
+              node={tab.pageId ? findNode(tree, tab.pageId) : null}
+              closable={tabs.length > 1}
+              onSelect={() => selectTab(tab.id)}
+              onClose={() => closeTab(tab.id)}
+              onMove={moveTab}
+            />
+          ))}
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7 flex-none"
-          title="New tab (⌘T)"
-          aria-label="New tab"
-          onClick={newTab}
-        >
-          <Plus className="size-4" />
-        </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7 flex-none"
+            title="New tab (⌘T)"
+            aria-label="New tab"
+            onClick={newTab}
+          >
+            <Plus className="size-4" />
+          </Button>
+        </div>
       </div>
 
       <div className="app-no-drag flex flex-none items-center gap-1">
