@@ -270,16 +270,12 @@ body.is-dragging-block * {
 
 /* A selected block tints as a uniform full-width row. Every selectable block —
    paragraph, heading, list item, to-do — spans the column, so the tint fills
-   it edge to edge (markers included) with rounded corners, matching a Notion
-   multi-block selection. A small horizontal bleed plus a hair of vertical gap
-   separate the rows. */
+   it edge to edge (markers included), matching a Notion multi-block selection.
+   No margin here: the tint is exactly the block's box, so selecting it doesn't
+   shift the text, and the row gaps come from `--block-gap`. */
 .graphite-editor .tiptap .block-selected {
-  @apply rounded-md;
+  border-radius: 3px;
   background-color: color-mix(in oklab, #2f6fa8 30%, transparent);
-  /* Auto-width block: negative inline margin widens the tinted box a touch
-     past the text on both sides without moving the text itself. Vertical gaps
-     between rows come from the list's flex gap, not margin here. */
-  margin-inline: -0.375rem;
 }
 
 /* The native highlight underneath would otherwise show through the tint. */
@@ -300,8 +296,14 @@ body.is-selecting-blocks * {
   pointer-events: none;
 }
 
+/* One gap value for the whole document, so every block — and every tinted row
+   of a selection — is separated by the same amount. */
+.graphite-editor .tiptap {
+  --block-gap: 4px;
+}
+
 .graphite-editor .tiptap > * + * {
-  margin-top: 0.28em;
+  margin-top: var(--block-gap);
 }
 
 .graphite-editor .tiptap p {
@@ -323,14 +325,23 @@ body.is-selecting-blocks * {
 
 .graphite-editor .tiptap ul,
 .graphite-editor .tiptap ol {
-  @apply my-1;
+  margin-bottom: 0;
+  margin-inline: 0;
   list-style: none;
   padding-left: 0;
   /* A flex column so the gap between items can't margin-collapse to nothing —
      that gap is what separates the tinted rows of a selection. */
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--block-gap);
+}
+
+/* `> * + *` below sets this same margin-top on every block but a list — this
+   selector is more specific and would otherwise win with 0. Skipped for a
+   list that opens the document, matching how the generic rule treats it. */
+.graphite-editor .tiptap ul:not(:first-child),
+.graphite-editor .tiptap ol:not(:first-child) {
+  margin-top: var(--block-gap);
 }
 
 /* Markers are rendered inside each item's own box (like the to-do checkbox),
