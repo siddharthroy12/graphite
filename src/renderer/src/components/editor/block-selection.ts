@@ -1,6 +1,6 @@
 import { Extension } from '@tiptap/core'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
-import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
+import { Plugin, PluginKey, TextSelection, type EditorState } from '@tiptap/pm/state'
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view'
 
 /**
@@ -10,10 +10,12 @@ import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view'
  *
  * - A marquee. Dragging from the left gutter or from the empty space below the
  *   content draws a rectangle and selects every block it crosses. Starting
- *   inside the text is left alone, so ordinary text selection still works.
- * - The look. Once a selection covers whole blocks, each one is tinted edge to
- *   edge rather than showing a ragged text highlight, and the native
- *   `::selection` is suppressed underneath.
+ *   inside the text is left alone, so ordinary text selection still works —
+ *   including a plain text drag that crosses into another block, which stays
+ *   a normal text selection rather than picking up the block look below.
+ * - The look. Only for a selection the marquee produced: each covered block
+ *   is tinted edge to edge rather than showing a ragged text highlight, and
+ *   the native `::selection` is suppressed underneath.
  *
  * The selection itself stays a plain ProseMirror TextSelection, so delete,
  * copy and paste keep working without special cases.
@@ -57,9 +59,15 @@ export function leafBlockRanges(doc: ProseMirrorNode): BlockRange[] {
   return out
 }
 
-/** How many selectable blocks a range touches. */
-export function blocksInRange(doc: ProseMirrorNode, from: number, to: number): number {
-  return leafBlockRanges(doc).filter((b) => b.end > from && b.start < to).length
+/**
+ * True only when the current selection was produced by the marquee gesture —
+ * never for an ordinary text selection, however many blocks it happens to
+ * span. Dragging from inside text across a block boundary is still just a
+ * text selection: it keeps the native highlight and the formatting bar,
+ * exactly like selecting within one block.
+ */
+export function isMarqueeSelection(state: EditorState): boolean {
+  return key.getState(state)?.marquee ?? false
 }
 
 /** Leaf blocks a non-empty selection overlaps. */
@@ -123,13 +131,13 @@ export const BlockSelection = Extension.create({
 
         props: {
           decorations: (state) => {
+            // Never for a plain text selection — only the marquee produces
+            // the tinted, edge-to-edge block look, whether it covers one item
+            // or many.
+            if (!isMarqueeSelection(state)) return null
+
             const blocks = coveredBlocks(state)
             if (blocks.length === 0) return null
-
-            // A single block tints only for a marquee; two or more always do,
-            // which also tidies a text drag that crosses a block boundary.
-            const fromMarquee = key.getState(state)?.marquee ?? false
-            if (blocks.length === 1 && !fromMarquee) return null
 
             return DecorationSet.create(
               state.doc,

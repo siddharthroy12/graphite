@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { BubbleMenu, type Editor } from '@tiptap/react'
 import { NodeSelection } from '@tiptap/pm/state'
-import { blocksInRange } from './block-selection'
+import { isMarqueeSelection } from './block-selection'
 import {
   Bold,
   Code,
@@ -90,10 +90,11 @@ export function FormattingMenu({ editor }: FormattingMenuProps): React.JSX.Eleme
         // a text range — an inline formatting bar has nothing to act on there.
         if (state.selection instanceof NodeSelection) return false
 
-        // A multi-block selection (the marquee, or a text drag across a block
-        // boundary) is a block-level action, not inline formatting. List items
-        // count individually, matching the block selection.
-        return blocksInRange(state.doc, from, to) <= 1
+        // Only the marquee's block-level selection hides the bar. An ordinary
+        // text drag that happens to cross a block boundary is still just a
+        // text selection — it keeps the bar, exactly like selecting within
+        // one block.
+        return !isMarqueeSelection(state)
       }}
       className="flex items-center gap-0.5 rounded-lg border bg-popover p-1 shadow-md"
     >
