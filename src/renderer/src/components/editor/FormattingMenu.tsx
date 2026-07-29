@@ -82,12 +82,20 @@ export function FormattingMenu({ editor }: FormattingMenuProps): React.JSX.Eleme
       editor={editor}
       tippyOptions={{ duration: 120, placement: 'top', maxWidth: 'none' }}
       shouldShow={({ editor: instance, state, from, to }) => {
+        if (from === to) return false
         // Hide inside code blocks, where inline marks don't apply.
         if (instance.isActive('codeBlock')) return false
         // Selecting a whole block via its drag handle is a NodeSelection, not
         // a text range — an inline formatting bar has nothing to act on there.
         if (state.selection instanceof NodeSelection) return false
-        return from !== to
+
+        // A multi-block selection (the marquee, or a text drag across a block
+        // boundary) is a block-level action, not inline formatting.
+        let blocks = 0
+        state.doc.forEach((node, offset) => {
+          if (offset + node.nodeSize > from && offset < to) blocks += 1
+        })
+        return blocks <= 1
       }}
       className="flex items-center gap-0.5 rounded-lg border bg-popover p-1 shadow-md"
     >
