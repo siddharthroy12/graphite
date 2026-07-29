@@ -277,9 +277,9 @@ body.is-dragging-block * {
   @apply rounded-md;
   background-color: color-mix(in oklab, #2f6fa8 30%, transparent);
   /* Auto-width block: negative inline margin widens the tinted box a touch
-     past the text on both sides without moving the text itself. */
+     past the text on both sides without moving the text itself. Vertical gaps
+     between rows come from the list's flex gap, not margin here. */
   margin-inline: -0.375rem;
-  margin-block: 1px;
 }
 
 /* The native highlight underneath would otherwise show through the tint. */
@@ -326,6 +326,11 @@ body.is-selecting-blocks * {
   @apply my-1;
   list-style: none;
   padding-left: 0;
+  /* A flex column so the gap between items can't margin-collapse to nothing —
+     that gap is what separates the tinted rows of a selection. */
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 /* Markers are rendered inside each item's own box (like the to-do checkbox),
