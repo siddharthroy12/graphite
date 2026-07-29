@@ -408,8 +408,32 @@ body.is-selecting-blocks * {
   color: inherit;
 }
 
+/* No margin-top of its own: the generic `.tiptap > * + *` rule below already
+   gives every block the same `--block-gap`, and this selector is more
+   specific (adds an element type to the same two classes) — declaring
+   margin here at all would win that fight and zero the gap out regardless of
+   the variable, putting the divider back in an inconsistent gap. The line
+   was previously just a 1px border with no surrounding height, so the
+   "space" around it was invisible margin the cursor could never actually
+   hover; height plus a centred pseudo-element gives it a real row to hover,
+   same idea as a paragraph's own line-height. */
 .graphite-editor .tiptap hr {
-  @apply my-6 border-t;
+  position: relative;
+  height: 1.75rem;
+  border: none;
+  background: none;
+  padding: 0;
+}
+
+.graphite-editor .tiptap hr::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 1px;
+  transform: translateY(-50%);
+  background-color: color-mix(in oklab, var(--foreground) 20%, transparent);
 }
 
 .graphite-editor .tiptap a {

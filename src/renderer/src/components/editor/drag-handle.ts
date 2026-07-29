@@ -107,8 +107,16 @@ function blockElementAt(view: EditorView, clientY: number): HTMLElement | null {
 
 function nodePosOf(view: EditorView, dom: HTMLElement): number | null {
   try {
-    // `posAtDOM(el, 0)` lands just inside the node; step back to the node.
-    return view.posAtDOM(dom, 0) - 1
+    const raw = view.posAtDOM(dom, 0)
+    // For a container (paragraph, heading, list item), offset 0 lands one
+    // position *inside* its opening tag, so stepping back to its own start
+    // means resolving that position and asking for the position before its
+    // enclosing node. A leaf with no content of its own (a horizontal rule)
+    // has nothing to land inside — `posAtDOM` already returns its own start,
+    // at depth 0, and `before` would wrongly step back into whatever
+    // precedes it, so it's skipped for that case.
+    const $pos = view.state.doc.resolve(raw)
+    return $pos.depth === 0 ? raw : $pos.before($pos.depth)
   } catch {
     return null
   }
