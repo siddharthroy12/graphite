@@ -311,16 +311,21 @@ body.is-selecting-blocks * {
   padding: 3px 2px;
 }
 
+/* Breathing room above a heading is padding *inside* its own box, not margin
+   between blocks — margin here would add to `--block-gap` and make the gap
+   above a heading bigger than every other block-to-block gap. As padding, a
+   multi-block selection that includes the heading tints that space too, so it
+   reads as part of the heading's block rather than an inconsistent gap. */
 .graphite-editor .tiptap h1 {
-  @apply mt-8 text-3xl font-bold tracking-tight;
+  @apply pt-8 text-3xl font-bold tracking-tight;
 }
 
 .graphite-editor .tiptap h2 {
-  @apply mt-6 text-2xl font-semibold tracking-tight;
+  @apply pt-6 text-2xl font-semibold tracking-tight;
 }
 
 .graphite-editor .tiptap h3 {
-  @apply mt-5 text-xl font-semibold tracking-tight;
+  @apply pt-5 text-xl font-semibold tracking-tight;
 }
 
 .graphite-editor .tiptap ul,
@@ -424,7 +429,11 @@ body.is-selecting-blocks * {
 }
 
 .graphite-editor .tiptap ul[data-type='taskList'] li {
-  @apply flex items-start gap-2;
+  /* pl-2 (0.5rem) matches exactly where a bullet/number marker sits — see
+     `left: 0.5rem` below — so a selection tint insets the checkbox the same
+     amount it insets a bullet, instead of sitting flush against one kind of
+     list but not the other. */
+  @apply flex items-start gap-2 pl-2;
 }
 
 .graphite-editor .tiptap ul[data-type='taskList'] li > label {
