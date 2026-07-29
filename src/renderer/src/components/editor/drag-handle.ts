@@ -43,6 +43,34 @@ interface DropSpot {
 
 const isList = (el: Element): boolean => el.tagName === 'UL' || el.tagName === 'OL'
 
+const spans = (el: Element, clientY: number): boolean => {
+  const rect = el.getBoundingClientRect()
+  return clientY >= rect.top && clientY <= rect.bottom
+}
+
+/**
+ * The child whose row contains `clientY`, or — failing that — whichever child
+ * is vertically nearest. List rows sit `--block-gap` apart (a flex `gap`,
+ * which leaves a real dead strip between the rows' own boxes, not just
+ * touching edges), so a pointer resting exactly in that gap contains no
+ * child's rect at all. Falling back to distance instead of giving up there
+ * is what keeps a row assigned even inside the gap.
+ */
+function closestChild(children: Element[], clientY: number): Element | undefined {
+  const contained = children.find((el) => spans(el, clientY))
+  if (contained) return contained
+  if (children.length === 0) return undefined
+
+  const distanceTo = (el: Element): number => {
+    const rect = el.getBoundingClientRect()
+    if (clientY < rect.top) return rect.top - clientY
+    if (clientY > rect.bottom) return clientY - rect.bottom
+    return 0
+  }
+
+  return children.reduce((nearest, el) => (distanceTo(el) < distanceTo(nearest) ? el : nearest))
+}
+
 /**
  * The block-level element under `clientY`, descending into list items so each
  * one gets its own handle at any nesting depth.
@@ -53,22 +81,19 @@ const isList = (el: Element): boolean => el.tagName === 'UL' || el.tagName === '
  * neighbouring block and makes the handle jump between rows.
  */
 function blockElementAt(view: EditorView, clientY: number): HTMLElement | null {
-  const spans = (el: Element): boolean => {
-    const rect = el.getBoundingClientRect()
-    return clientY >= rect.top && clientY <= rect.bottom
-  }
-
-  const first = Array.from(view.dom.children).find(spans)
+  const first = closestChild(Array.from(view.dom.children), clientY)
   if (!first) return null
 
   let el: Element = first
   while (isList(el)) {
-    const item: Element | undefined = Array.from(el.children).find(spans)
+    const item = closestChild(Array.from(el.children), clientY)
     if (!item) break
     // Keep descending only if a nested list — not the item's own text — is
-    // what sits under the pointer.
+    // what sits under the pointer. Strict containment here (not "nearest"):
+    // a nested list is small relative to its parent item, so it should only
+    // take over when the pointer is genuinely inside it.
     const nested: Element | undefined = Array.from(item.children).find(
-      (child) => isList(child) && spans(child)
+      (child) => isList(child) && spans(child, clientY)
     )
     if (!nested) {
       el = item
