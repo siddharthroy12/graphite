@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { BubbleMenu, type Editor } from '@tiptap/react'
 import { NodeSelection } from '@tiptap/pm/state'
+import { blocksInRange } from './block-selection'
 import {
   Bold,
   Code,
@@ -90,12 +91,9 @@ export function FormattingMenu({ editor }: FormattingMenuProps): React.JSX.Eleme
         if (state.selection instanceof NodeSelection) return false
 
         // A multi-block selection (the marquee, or a text drag across a block
-        // boundary) is a block-level action, not inline formatting.
-        let blocks = 0
-        state.doc.forEach((node, offset) => {
-          if (offset + node.nodeSize > from && offset < to) blocks += 1
-        })
-        return blocks <= 1
+        // boundary) is a block-level action, not inline formatting. List items
+        // count individually, matching the block selection.
+        return blocksInRange(state.doc, from, to) <= 1
       }}
       className="flex items-center gap-0.5 rounded-lg border bg-popover p-1 shadow-md"
     >

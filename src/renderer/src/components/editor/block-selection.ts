@@ -1,4 +1,5 @@
 import { Extension } from '@tiptap/core'
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view'
 
@@ -27,43 +28,48 @@ const MARQUEE_THRESHOLD = 4
  * Top-level blocks the selection covers, and whether the highlight should be
  * drawn — a partial selection inside one block stays a normal text highlight.
  */
-function coveredBlocks(state: {
-  doc: import('@tiptap/pm/model').Node
-  selection: { from: number; to: number; empty: boolean }
-}): Array<{ start: number; end: number }> {
-  const { selection, doc } = state
-  if (selection.empty) return []
+const LIST_NODES = new Set(['bulletList', 'orderedList', 'taskList'])
 
-  const blocks: Array<{ start: number; end: number }> = []
-  doc.forEach((node, offset) => {
-    const start = offset
-    const end = offset + node.nodeSize
-    if (end > selection.from && start < selection.to) blocks.push({ start, end })
-  })
-
-  if (blocks.length > 1) return blocks
-
-  // Exactly one block: only treat it as a block selection when the whole of it
-  // is covered, so dragging across a few words keeps the usual highlight.
-  if (blocks.length === 1) {
-    const [only] = blocks
-    const whole = selection.from <= only.start + 1 && selection.to >= only.end - 1
-    return whole ? blocks : []
-  }
-
-  return []
+export interface BlockRange {
+  start: number
+  end: number
 }
 
-function decorationsFor(state: Parameters<typeof coveredBlocks>[0]): DecorationSet | null {
-  const blocks = coveredBlocks(state)
-  if (blocks.length === 0) return null
+/**
+ * The document's selectable blocks. A list is not one block — each of its items
+ * is, so the marquee and its highlight treat list items the way it treats
+ * paragraphs. A list item keeps any nested list inside it as one unit.
+ */
+export function leafBlockRanges(doc: ProseMirrorNode): BlockRange[] {
+  const out: BlockRange[] = []
+  doc.forEach((node, offset) => {
+    if (LIST_NODES.has(node.type.name)) {
+      // `itemOffset` is relative to the list's content, which starts one
+      // position inside the list node.
+      node.forEach((item, itemOffset) => {
+        const start = offset + 1 + itemOffset
+        out.push({ start, end: start + item.nodeSize })
+      })
+    } else {
+      out.push({ start: offset, end: offset + node.nodeSize })
+    }
+  })
+  return out
+}
 
-  return DecorationSet.create(
-    state.doc,
-    blocks.map(({ start, end }) =>
-      Decoration.node(start, end, { class: 'block-selected' })
-    )
-  )
+/** How many selectable blocks a range touches. */
+export function blocksInRange(doc: ProseMirrorNode, from: number, to: number): number {
+  return leafBlockRanges(doc).filter((b) => b.end > from && b.start < to).length
+}
+
+/** Leaf blocks a non-empty selection overlaps. */
+function coveredBlocks(state: {
+  doc: ProseMirrorNode
+  selection: { from: number; to: number; empty: boolean }
+}): BlockRange[] {
+  const { selection, doc } = state
+  if (selection.empty) return []
+  return leafBlockRanges(doc).filter((b) => b.end > selection.from && b.start < selection.to)
 }
 
 /** Left edge of the text column; anything left of it is the handle gutter. */
@@ -98,11 +104,40 @@ export const BlockSelection = Extension.create({
 
   addProseMirrorPlugins() {
     return [
-      new Plugin({
+      new Plugin<{ marquee: boolean }>({
         key,
 
+        // Tracks whether the current selection came from the marquee, so a
+        // single covered block is tinted only then — a plain text selection of
+        // one block keeps the native highlight. Inferring this from geometry is
+        // unreliable across nesting depths, so the marquee flags it directly.
+        state: {
+          init: () => ({ marquee: false }),
+          apply: (tr, prev) => {
+            const meta = tr.getMeta(key) as { marquee: boolean } | undefined
+            if (meta) return meta
+            if (tr.selectionSet || tr.docChanged) return { marquee: false }
+            return prev
+          }
+        },
+
         props: {
-          decorations: (state) => decorationsFor(state)
+          decorations: (state) => {
+            const blocks = coveredBlocks(state)
+            if (blocks.length === 0) return null
+
+            // A single block tints only for a marquee; two or more always do,
+            // which also tidies a text drag that crosses a block boundary.
+            const fromMarquee = key.getState(state)?.marquee ?? false
+            if (blocks.length === 1 && !fromMarquee) return null
+
+            return DecorationSet.create(
+              state.doc,
+              blocks.map(({ start, end }) =>
+                Decoration.node(start, end, { class: 'block-selected' })
+              )
+            )
+          }
         },
 
         view: (view) => {
@@ -144,37 +179,32 @@ export const BlockSelection = Extension.create({
           }
 
           const selectWithin = (top: number, bottom: number): void => {
-            const rows = Array.from(view.dom.children).filter((el) => {
-              const rect = el.getBoundingClientRect()
+            const { doc } = view.state
+
+            // Rows are leaf blocks — list items included — hit-tested by their
+            // own DOM rect, so the marquee catches individual items.
+            const rows = leafBlockRanges(doc).filter(({ start }) => {
+              const dom = view.nodeDOM(start)
+              if (!(dom instanceof HTMLElement)) return false
+              const rect = dom.getBoundingClientRect()
               return rect.bottom > top && rect.top < bottom
             })
             if (rows.length === 0) return
 
-            const posOf = (el: Element): number | null => {
-              try {
-                return view.posAtDOM(el, 0) - 1
-              } catch {
-                return null
-              }
-            }
+            const first = rows[0]
+            const last = rows[rows.length - 1]
 
-            const firstPos = posOf(rows[0])
-            const lastPos = posOf(rows[rows.length - 1])
-            if (firstPos === null || lastPos === null) return
-
-            const lastNode = view.state.doc.nodeAt(lastPos)
-            if (!lastNode) return
-
-            const { doc } = view.state
             // `between` snaps to valid text positions, so a list or other
             // non-textblock at either end doesn't produce an invalid selection.
             const selection = TextSelection.between(
-              doc.resolve(firstPos + 1),
-              doc.resolve(lastPos + lastNode.nodeSize - 1)
+              doc.resolve(first.start + 1),
+              doc.resolve(last.end - 1)
             )
 
             if (!selection.eq(view.state.selection)) {
-              view.dispatch(view.state.tr.setSelection(selection))
+              view.dispatch(
+                view.state.tr.setSelection(selection).setMeta(key, { marquee: true })
+              )
             }
           }
 
