@@ -156,10 +156,6 @@ export function PageTreeItem({
 
         <span className="min-w-0 flex-1 truncate">{displayTitle(node.title)}</span>
 
-        {node.favorite && (
-          <Star className="size-3 flex-none fill-current text-amber-500" aria-label="Favorite" />
-        )}
-
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
           <DropdownMenuTrigger asChild>
             <button

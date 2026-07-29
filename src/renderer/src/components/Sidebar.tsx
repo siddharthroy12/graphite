@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { PageTreeNode } from '@shared/types'
-import { FileText, Plus, Search, Settings, Star } from 'lucide-react'
+import { FileText, Plus, Search, Settings } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { displayTitle, flattenTree, PAGE_DRAG_TYPE } from '@/lib/tree'
@@ -99,7 +99,6 @@ export function Sidebar({
                     {node.icon ?? <FileText className="size-3.5 text-muted-foreground" />}
                   </span>
                   <span className="min-w-0 flex-1 truncate">{displayTitle(node.title)}</span>
-                  <Star className="size-3 flex-none fill-current text-amber-500" />
                 </button>
               ))}
             </section>
