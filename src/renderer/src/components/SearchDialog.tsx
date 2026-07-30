@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/command'
 import { displayTitle } from '@/lib/tree'
 import { useWorkspace } from '@/lib/workspace'
+import { PageIcon } from './PageIcon'
 
 interface SearchDialogProps {
   open: boolean
@@ -81,7 +82,10 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps): React.J
             {recent.map((page) => (
               <CommandItem key={page.id} value={page.id} onSelect={() => select(page.id)}>
                 <span className="flex size-4 items-center justify-center text-base leading-none">
-                  {page.icon ?? <Clock className="size-4 text-muted-foreground" />}
+                  <PageIcon
+                    icon={page.icon}
+                    fallback={<Clock className="size-4 text-muted-foreground" />}
+                  />
                 </span>
                 <span className="truncate">{displayTitle(page.title)}</span>
               </CommandItem>
@@ -94,7 +98,10 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps): React.J
             {results.map((result) => (
               <CommandItem key={result.id} value={result.id} onSelect={() => select(result.id)}>
                 <span className="flex size-4 items-center justify-center text-base leading-none">
-                  {result.icon ?? <FileText className="size-4 text-muted-foreground" />}
+                  <PageIcon
+                    icon={result.icon}
+                    fallback={<FileText className="size-4 text-muted-foreground" />}
+                  />
                 </span>
                 <span className="flex min-w-0 flex-col">
                   <span className="truncate">{displayTitle(result.title)}</span>

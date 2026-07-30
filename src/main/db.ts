@@ -19,6 +19,8 @@ interface PageRow {
   parent_id: string | null
   title: string
   icon: string | null
+  cover: string | null
+  cover_position: number
   content: string
   plain_text: string
   favorite: number
@@ -35,7 +37,10 @@ const DEFAULT_PREFERENCES: Preferences = {
   sidebarWidth: 260,
   expandedIds: [],
   tabs: [],
-  activeTabId: null
+  activeTabId: null,
+  recentIcons: [],
+  iconSkinTone: 0,
+  iconColor: null
 }
 
 let db: Database.Database
@@ -47,6 +52,8 @@ function toPage(row: PageRow): Page {
     parentId: row.parent_id,
     title: row.title,
     icon: row.icon,
+    cover: row.cover,
+    coverPosition: row.cover_position,
     content: row.content,
     plainText: row.plain_text,
     favorite: row.favorite === 1,
@@ -62,6 +69,8 @@ function toSummary(row: SummaryRow): PageSummary {
     parentId: row.parent_id,
     title: row.title,
     icon: row.icon,
+    cover: row.cover,
+    coverPosition: row.cover_position,
     favorite: row.favorite === 1,
     position: row.position,
     createdAt: row.created_at,
@@ -70,7 +79,7 @@ function toSummary(row: SummaryRow): PageSummary {
 }
 
 const SUMMARY_COLUMNS =
-  'id, parent_id, title, icon, favorite, position, created_at, updated_at'
+  'id, parent_id, title, icon, cover, cover_position, favorite, position, created_at, updated_at'
 
 export function initDatabase(): void {
   dbPath = join(app.getPath('userData'), 'graphite.db')
@@ -85,6 +94,8 @@ export function initDatabase(): void {
       parent_id   TEXT REFERENCES pages(id) ON DELETE CASCADE,
       title       TEXT NOT NULL DEFAULT '',
       icon        TEXT,
+      cover       TEXT,
+      cover_position REAL NOT NULL DEFAULT 0.5,
       content     TEXT NOT NULL DEFAULT '',
       plain_text  TEXT NOT NULL DEFAULT '',
       favorite    INTEGER NOT NULL DEFAULT 0,
@@ -127,7 +138,26 @@ export function initDatabase(): void {
     END;
   `)
 
+  migrate()
   seedIfEmpty()
+}
+
+/**
+ * Brings a database created by an older build up to the current schema.
+ * `CREATE TABLE IF NOT EXISTS` above only covers fresh installs, so every
+ * column added after the first release needs an entry here.
+ */
+function migrate(): void {
+  const columns = new Set(
+    db.prepare<[], { name: string }>('PRAGMA table_info(pages)').all().map((row) => row.name)
+  )
+
+  if (!columns.has('cover')) {
+    db.exec('ALTER TABLE pages ADD COLUMN cover TEXT')
+  }
+  if (!columns.has('cover_position')) {
+    db.exec('ALTER TABLE pages ADD COLUMN cover_position REAL NOT NULL DEFAULT 0.5')
+  }
 }
 
 export function getDatabasePath(): string {
@@ -136,6 +166,18 @@ export function getDatabasePath(): string {
 
 export function closeDatabase(): void {
   db?.close()
+}
+
+/** Every icon and cover value in use — how uploaded image files are garbage-collected. */
+export function getUsedImages(): string[] {
+  return db
+    .prepare<[], { value: string }>(
+      `SELECT DISTINCT icon AS value FROM pages WHERE icon IS NOT NULL
+       UNION
+       SELECT DISTINCT cover AS value FROM pages WHERE cover IS NOT NULL`
+    )
+    .all()
+    .map((row) => row.value)
 }
 
 /* -------------------------------------------------------------------------- */
@@ -165,6 +207,8 @@ export function createPage(input: CreatePageInput): Page {
     parent_id: parentId,
     title: input.title ?? '',
     icon: input.icon ?? null,
+    cover: input.cover ?? null,
+    cover_position: input.coverPosition ?? 0.5,
     content: '',
     plain_text: '',
     favorite: 0,
@@ -174,8 +218,8 @@ export function createPage(input: CreatePageInput): Page {
   }
 
   db.prepare(
-    `INSERT INTO pages (id, parent_id, title, icon, content, plain_text, favorite, position, created_at, updated_at)
-     VALUES (@id, @parent_id, @title, @icon, @content, @plain_text, @favorite, @position, @created_at, @updated_at)`
+    `INSERT INTO pages (id, parent_id, title, icon, cover, cover_position, content, plain_text, favorite, position, created_at, updated_at)
+     VALUES (@id, @parent_id, @title, @icon, @cover, @cover_position, @content, @plain_text, @favorite, @position, @created_at, @updated_at)`
   ).run(row)
 
   return toPage(row)
@@ -214,6 +258,8 @@ export function updatePage(input: UpdatePageInput): Page | null {
 
   if (input.title !== undefined) assign('title', input.title)
   if (input.icon !== undefined) assign('icon', input.icon)
+  if (input.cover !== undefined) assign('cover', input.cover)
+  if (input.coverPosition !== undefined) assign('cover_position', input.coverPosition)
   if (input.content !== undefined) assign('content', input.content)
   if (input.plainText !== undefined) assign('plain_text', input.plainText)
   if (input.favorite !== undefined) assign('favorite', input.favorite ? 1 : 0)
@@ -262,7 +308,9 @@ export function duplicatePage(id: string): Page {
     const rootCopy = createPage({
       parentId: source.parentId,
       title: source.title ? `${source.title} (copy)` : '',
-      icon: source.icon
+      icon: source.icon,
+      cover: source.cover,
+      coverPosition: source.coverPosition
     })
     updatePage({
       id: rootCopy.id,
@@ -287,7 +335,9 @@ export function duplicatePage(id: string): Page {
         const childCopy = createPage({
           parentId: newParentId,
           title: child.title,
-          icon: child.icon
+          icon: child.icon,
+          cover: child.cover,
+          coverPosition: child.cover_position
         })
         updatePage({
           id: childCopy.id,

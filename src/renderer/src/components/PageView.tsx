@@ -1,21 +1,48 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { PageSummary } from '@shared/types'
-import { ChevronRight, Plus, Smile } from 'lucide-react'
+import type { PageSummary, PageTreeNode } from '@shared/types'
+import {
+  ChevronRight,
+  Copy,
+  Image as ImageIcon,
+  MoreHorizontal,
+  Plus,
+  Smile,
+  Star,
+  Trash2
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
-import { displayTitle } from '@/lib/tree'
+import { displayTitle, findNode } from '@/lib/tree'
 import { useWorkspace } from '@/lib/workspace'
 import { Editor } from './editor/Editor'
+import { CoverPicker } from './CoverPicker'
 import { IconPicker } from './IconPicker'
+import { PageCover } from './PageCover'
+import { PageIcon } from './PageIcon'
 
-export function PageView(): React.JSX.Element {
+interface PageViewProps {
+  onRequestDelete(node: PageTreeNode): void
+}
+
+export function PageView({ onRequestDelete }: PageViewProps): React.JSX.Element {
   const {
     currentPage,
     currentPageId,
     tree,
     renamePage,
     setPageIcon,
+    setPageCover,
+    setPageCoverPosition,
     createPage,
+    duplicatePage,
+    toggleFavorite,
     updateContent,
     openPage
   } = useWorkspace()
@@ -77,52 +104,175 @@ export function PageView(): React.JSX.Element {
     )
   }
 
-  const parents = breadcrumb.slice(0, -1)
+  // The whole path, current page included — a top-level page still gets a
+  // trail, showing just itself. The last crumb reads its title from the open
+  // page rather than the fetched breadcrumb, so it tracks typing immediately
+  // instead of waiting for the next save.
+  const trail = (
+    <nav className="flex min-w-0 flex-wrap items-center gap-0.5 py-0.5 text-sm">
+      {breadcrumb.map((crumb, index) => {
+        const isCurrent = index === breadcrumb.length - 1
+        return (
+          <span key={crumb.id} className="flex min-w-0 items-center gap-0.5">
+            <button
+              type="button"
+              onClick={() => openPage(crumb.id)}
+              className={cn(
+                'flex max-w-[12rem] items-center gap-1 truncate rounded px-1.5 py-0.5 transition-colors hover:bg-accent hover:text-foreground',
+                isCurrent ? 'text-foreground' : 'text-muted-foreground'
+              )}
+            >
+              <PageIcon
+                icon={isCurrent ? currentPage.icon : crumb.icon}
+                fallback={null}
+                className="flex-none"
+              />
+              <span className="truncate">
+                {displayTitle(isCurrent ? currentPage.title : crumb.title)}
+              </span>
+            </button>
+            {!isCurrent && <ChevronRight className="size-3.5 flex-none text-muted-foreground/60" />}
+          </span>
+        )
+      })}
+    </nav>
+  )
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto w-full max-w-3xl px-16 pt-6 pb-40">
-        {parents.length > 0 && (
-          <nav className="mb-3 flex min-w-0 flex-wrap items-center gap-0.5 text-sm">
-            {parents.map((crumb) => (
-              <span key={crumb.id} className="flex min-w-0 items-center gap-0.5">
-                <button
-                  type="button"
-                  onClick={() => openPage(crumb.id)}
-                  className="max-w-[12rem] truncate rounded px-1.5 py-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                >
-                  {crumb.icon ? `${crumb.icon} ` : ''}
-                  {displayTitle(crumb.title)}
-                </button>
-                <ChevronRight className="size-3.5 flex-none text-muted-foreground/60" />
-              </span>
-            ))}
-          </nav>
+      {/* A header strip across the top of the view — trail on the left, page
+          actions on the right — evenly inset by 12px and in the same place
+          whether or not the page has a cover. It stays put while the page
+          scrolls beneath it, so it needs its own background. It has to live
+          outside the content column in any case: with a cover, a breadcrumb
+          between banner and icon would push the icon off the banner's edge by
+          however many ancestors the page happens to have. */}
+      <div className="sticky top-0 z-20 flex items-center justify-between gap-2 bg-background p-3">
+        {trail}
+
+        {/* Page-level actions live with the trail rather than in the tab bar:
+            they act on this page, not on the window's tabs. */}
+        <div className="flex flex-none items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7"
+            title={currentPage.favorite ? 'Remove from favorites' : 'Add to favorites'}
+            aria-label={currentPage.favorite ? 'Remove from favorites' : 'Add to favorites'}
+            onClick={() => void toggleFavorite(currentPage.id)}
+          >
+            <Star className={cn('size-4', currentPage.favorite && 'fill-current text-amber-500')} />
+          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-7" aria-label="Page options">
+                <MoreHorizontal className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onSelect={() => void createPage(currentPage.id)}>
+                <Plus className="size-4" />
+                Add subpage
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => void duplicatePage(currentPage.id)}>
+                <Copy className="size-4" />
+                Duplicate
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                variant="destructive"
+                onSelect={() => {
+                  const node = findNode(tree, currentPage.id)
+                  if (node) onRequestDelete(node)
+                }}
+              >
+                <Trash2 className="size-4" />
+                Delete page
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      {currentPage.cover && (
+        <PageCover
+          cover={currentPage.cover}
+          position={currentPage.coverPosition}
+          onChange={(cover) => void setPageCover(currentPage.id, cover)}
+          onPositionChange={(position) => void setPageCoverPosition(currentPage.id, position)}
+        />
+      )}
+
+      {/* No top padding: the header strip above already spaces the page off
+          the tab bar, and with a cover the icon deliberately rides up onto it. */}
+      <div className="group/page mx-auto w-full max-w-3xl px-16 pt-0 pb-40">
+        {currentPage.icon && (
+          <div
+            className={cn(
+              'mb-2',
+              // Half the icon rides up onto the cover, as in the reference.
+              // `relative` alone is enough to paint it above the banner —
+              // both are in the same stacking context, and it comes later.
+              currentPage.cover && 'relative -mt-8'
+            )}
+          >
+            <IconPicker
+              value={currentPage.icon}
+              onChange={(icon) => void setPageIcon(currentPage.id, icon)}
+            >
+              <button
+                type="button"
+                className="flex items-center gap-2 rounded-md text-left text-6xl leading-none transition-opacity hover:opacity-80"
+              >
+                <PageIcon icon={currentPage.icon} />
+              </button>
+            </IconPicker>
+          </div>
         )}
 
-        <div className="group/icon mb-2">
-          <IconPicker
-            value={currentPage.icon}
-            onChange={(icon) => void setPageIcon(currentPage.id, icon)}
+        {/* Only the controls the page is missing, revealed on hover — the same
+            way the icon button behaved before covers existed. */}
+        {(!currentPage.icon || !currentPage.cover) && (
+          <div
+            className={cn(
+              'mb-2 flex gap-1 opacity-0 transition-opacity group-hover/page:opacity-100',
+              // Nothing is overlapping the cover in this case, so the header
+              // still needs its own breathing room below it.
+              currentPage.cover && !currentPage.icon && 'pt-4'
+            )}
           >
-            <button
-              type="button"
-              className={cn(
-                'flex items-center gap-2 rounded-md text-left transition-colors',
-                currentPage.icon
-                  ? 'text-6xl leading-none hover:opacity-80'
-                  : 'px-2 py-1 text-sm text-muted-foreground opacity-0 hover:bg-accent group-hover/icon:opacity-100'
-              )}
-            >
-              {currentPage.icon ?? (
-                <>
+            {!currentPage.icon && (
+              <IconPicker
+                value={currentPage.icon}
+                onChange={(icon) => void setPageIcon(currentPage.id, icon)}
+              >
+                <button
+                  type="button"
+                  className="flex items-center gap-2 rounded-md px-2 py-1 text-sm text-muted-foreground transition-colors hover:bg-accent"
+                >
                   <Smile className="size-4" />
                   Add icon
-                </>
-              )}
-            </button>
-          </IconPicker>
-        </div>
+                </button>
+              </IconPicker>
+            )}
+
+            {!currentPage.cover && (
+              <CoverPicker
+                value={currentPage.cover}
+                onChange={(cover) => void setPageCover(currentPage.id, cover)}
+              >
+                <button
+                  type="button"
+                  className="flex items-center gap-2 rounded-md px-2 py-1 text-sm text-muted-foreground transition-colors hover:bg-accent"
+                >
+                  <ImageIcon className="size-4" />
+                  Add cover
+                </button>
+              </CoverPicker>
+            )}
+          </div>
+        )}
 
         <textarea
           ref={titleRef}

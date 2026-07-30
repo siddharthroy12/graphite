@@ -1,27 +1,10 @@
 import { useState } from 'react'
-import {
-  ChevronLeft,
-  ChevronRight,
-  Copy,
-  FileText,
-  MoreHorizontal,
-  PanelLeft,
-  Plus,
-  Star,
-  Trash2,
-  X
-} from 'lucide-react'
+import { ChevronLeft, ChevronRight, FileText, PanelLeft, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { displayTitle, findNode } from '@/lib/tree'
 import { useWorkspace, type Tab } from '@/lib/workspace'
+import { PageIcon } from './PageIcon'
 import type { PageTreeNode } from '@shared/types'
 
 export const TAB_DRAG_TYPE = 'application/x-graphite-tab'
@@ -34,11 +17,7 @@ const SAVE_LABELS: Record<string, string> = {
   idle: ''
 }
 
-interface TabBarProps {
-  onRequestDelete(node: PageTreeNode): void
-}
-
-export function TabBar({ onRequestDelete }: TabBarProps): React.JSX.Element {
+export function TabBar(): React.JSX.Element {
   const {
     tabs,
     activeTabId,
@@ -53,11 +32,7 @@ export function TabBar({ onRequestDelete }: TabBarProps): React.JSX.Element {
     sidebarOpen,
     setSidebarOpen,
     tree,
-    currentPage,
-    saveState,
-    toggleFavorite,
-    duplicatePage,
-    createPage
+    saveState
   } = useWorkspace()
 
   const isMac = window.api.system.platform === 'darwin'
@@ -65,24 +40,27 @@ export function TabBar({ onRequestDelete }: TabBarProps): React.JSX.Element {
   return (
     <div
       className={cn(
-        // No border-b here: it used to live on the whole bar, but a tab
-        // nested in the horizontally-scrolling row below can never cover an
-        // ancestor's border to open a gap under itself — overflow-x-auto
-        // forces overflow-y to compute as auto too (unavoidable per the CSS
-        // overflow spec), which clips anything a child tries to extend past
-        // its own edge to reach the ancestor's border. Each bar segment
-        // (this group, the tabs, the + button, the group on the right) draws
-        // its own border-b instead, so the active tab can simply not draw
-        // one rather than needing to hide someone else's.
-        'app-drag flex h-11 flex-none items-center gap-1 bg-sidebar pr-2 pl-2',
+        // The bar's bottom line is painted as a *background* (a 1px gradient
+        // stop at the bottom edge), not as border-b. A border would shrink
+        // this box's content area to 43px, so the h-11 tabs inside would end
+        // a pixel above the line and could never cover it — and they can't
+        // overflow to reach it either, since the horizontally-scrolling row
+        // they live in clips them (overflow-x: auto forces overflow-y to
+        // compute as auto too, unavoidable per the CSS overflow spec). As a
+        // background it sits at the very bottom of a full-height content box,
+        // and the active tab's own bg-background — painted after its
+        // ancestors' and reaching its own natural edge — simply covers it.
+        //
+        // It also has to live here on the whole bar rather than on each
+        // segment: segments are sized to their content, so the bar's own
+        // padding (pl-2/pr-2, and the wider traffic-light inset) would be
+        // left without a line at either end.
+        'app-drag flex h-11 flex-none items-center gap-1 bg-sidebar bg-[linear-gradient(to_top,var(--border)_1px,transparent_1px)] pr-2 pl-2',
         // Clear the traffic lights when the sidebar isn't there to hold them.
         isMac && !sidebarOpen && 'pl-[78px]'
       )}
     >
-      {/* h-11 (not just centred within the h-11 bar) so this group's own
-          border-b lands at the same y as the tabs' — otherwise the line
-          would draw partway up the bar instead of at its bottom edge. */}
-      <div className="app-no-drag flex h-11 flex-none items-center gap-0.5 border-b">
+      <div className="app-no-drag flex h-11 flex-none items-center gap-0.5">
         <Button
           variant="ghost"
           size="icon"
@@ -121,8 +99,8 @@ export function TabBar({ onRequestDelete }: TabBarProps): React.JSX.Element {
           that should behave like the rest of the tab bar, not like a tab.
           Only the inner row — sized to its actual content — opts out, so the
           tabs and the + button stay clickable and draggable individually. */}
-      <div className="app-drag flex h-11 min-w-0 flex-1 items-center border-b">
-        <div className="app-no-drag scrollbar-none flex min-w-0 items-center overflow-x-auto">
+      <div className="app-drag flex h-11 min-w-0 flex-1 items-center">
+        <div className="app-no-drag scrollbar-none flex h-11 min-w-0 items-center overflow-x-auto">
           {tabs.map((tab, index) => (
             <TabItem
               key={tab.id}
@@ -150,7 +128,7 @@ export function TabBar({ onRequestDelete }: TabBarProps): React.JSX.Element {
         </div>
       </div>
 
-      <div className="app-no-drag flex h-11 flex-none items-center gap-1 border-b">
+      <div className="app-no-drag flex h-11 flex-none items-center gap-1">
         <span
           className={cn(
             'text-xs whitespace-nowrap',
@@ -160,56 +138,6 @@ export function TabBar({ onRequestDelete }: TabBarProps): React.JSX.Element {
           {SAVE_LABELS[saveState]}
         </span>
 
-        {currentPage && (
-          <>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-7"
-              title={currentPage.favorite ? 'Remove from favorites' : 'Add to favorites'}
-              aria-label={currentPage.favorite ? 'Remove from favorites' : 'Add to favorites'}
-              onClick={() => void toggleFavorite(currentPage.id)}
-            >
-              <Star
-                className={cn('size-4', currentPage.favorite && 'fill-current text-amber-500')}
-              />
-            </Button>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-7"
-                  aria-label="Page options"
-                >
-                  <MoreHorizontal className="size-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onSelect={() => void createPage(currentPage.id)}>
-                  <Plus className="size-4" />
-                  Add subpage
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => void duplicatePage(currentPage.id)}>
-                  <Copy className="size-4" />
-                  Duplicate
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onSelect={() => {
-                    const node = findNode(tree, currentPage.id)
-                    if (node) onRequestDelete(node)
-                  }}
-                >
-                  <Trash2 className="size-4" />
-                  Delete page
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </>
-        )}
       </div>
     </div>
   )
@@ -276,19 +204,18 @@ function TabItem({
         // pill floating inside the bar — so the active tab's background can
         // reach the bar's own edges exactly, top and bottom.
         //
-        // `border-x` is unconditional (transparent when inactive) rather than
-        // only present on the active tab: a border adds to a fit-content
-        // element's own rendered width, so a tab that gains or loses it
-        // changes size — which shifts its own icon/label inward or outward,
-        // and shoves every tab to its right sideways. Keeping the border's
-        // *width* constant at all times and only ever toggling its *colour*
-        // means the box's dimensions never change with active state.
-        'group relative flex h-11 max-w-[13rem] min-w-0 flex-none cursor-default items-center gap-1.5 rounded-none border-x border-transparent pr-1 pl-2 text-sm select-none',
+        // Every tab draws both side borders, active or not. The -ml-px on all
+        // but the first pulls each tab onto its neighbour's right border so
+        // the pair renders as one 1px line rather than a 2px seam; the outer
+        // edges of the strip keep their single border. The border's width and
+        // colour are the same in both states, so nothing about a tab's box
+        // changes when it becomes active — no icon/label shift, no sideways
+        // shove of the tabs to its right.
+        'group relative flex h-11 max-w-[13rem] min-w-0 flex-none cursor-default items-center gap-1.5 rounded-none border-x border-border pr-2 pl-3 text-sm select-none',
+        index > 0 && '-ml-px',
         active
           ? // The page surface's own colour, so it reads as one continuous
-            // surface flowing from the tab into the content below it. Only
-            // the active tab's border is actually visible — it marks its
-            // edges against the bar, not a divider between every tab pair.
+            // surface flowing from the tab into the content below it.
             //
             // No relative/absolute offset here, even though the tab's own
             // edge can land a sub-pixel short of the border in testing
@@ -300,7 +227,7 @@ function TabItem({
             // same failure mode as the original covering span. It's the
             // border's new home (the row's parent) that isn't clipped, not
             // this element.
-            'border-border bg-background text-foreground'
+            'bg-background text-foreground'
           : 'text-muted-foreground hover:bg-sidebar-accent/50'
       )}
     >
@@ -313,7 +240,7 @@ function TabItem({
       )}
 
       <span className="flex size-4 flex-none items-center justify-center text-sm leading-none">
-        {node?.icon ?? <FileText className="size-3.5 opacity-70" />}
+        <PageIcon icon={node?.icon} fallback={<FileText className="size-3.5 opacity-70" />} />
       </span>
 
       <span className="min-w-0 flex-1 truncate">{title}</span>

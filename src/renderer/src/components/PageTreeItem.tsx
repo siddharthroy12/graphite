@@ -20,6 +20,7 @@ import {
 import { cn } from '@/lib/utils'
 import { displayTitle, PAGE_DRAG_TYPE } from '@/lib/tree'
 import { useWorkspace } from '@/lib/workspace'
+import { PageIcon } from './PageIcon'
 
 /** Where a drop would land relative to the hovered row. */
 type DropZone = 'before' | 'inside' | 'after'
@@ -151,7 +152,10 @@ export function PageTreeItem({
         </button>
 
         <span className="flex size-5 flex-none items-center justify-center text-base leading-none">
-          {node.icon ?? <FileText className="size-3.5 text-muted-foreground" />}
+          <PageIcon
+            icon={node.icon}
+            fallback={<FileText className="size-3.5 text-muted-foreground" />}
+          />
         </span>
 
         <span className="min-w-0 flex-1 truncate">{displayTitle(node.title)}</span>

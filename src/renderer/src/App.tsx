@@ -181,9 +181,9 @@ export function App(): React.JSX.Element {
         )}
 
         <main className="flex min-w-0 flex-1 flex-col">
-          <TabBar onRequestDelete={setPendingDelete} />
+          <TabBar />
           <div className="min-h-0 flex-1">
-            <PageView />
+            <PageView onRequestDelete={setPendingDelete} />
           </div>
         </main>
       </div>

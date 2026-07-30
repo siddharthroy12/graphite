@@ -5,6 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { displayTitle, flattenTree, PAGE_DRAG_TYPE } from '@/lib/tree'
 import { useWorkspace } from '@/lib/workspace'
+import { PageIcon } from './PageIcon'
 import { PageTreeItem } from './PageTreeItem'
 
 interface SidebarProps {
@@ -52,9 +53,20 @@ export function Sidebar({
         >
           <Search className="size-4" />
           <span>Search</span>
-          <kbd className="ml-auto rounded border px-1 text-[10px] text-muted-foreground">
-            {isMac ? '⌘K' : 'Ctrl K'}
-          </kbd>
+          {isMac ? (
+            <span className="ml-auto flex items-center gap-0.5">
+              <kbd className="flex size-4 items-center justify-center rounded border text-xs leading-none text-muted-foreground">
+                ⌘
+              </kbd>
+              <kbd className="flex size-4 items-center justify-center rounded border text-[10px] leading-none text-muted-foreground">
+                K
+              </kbd>
+            </span>
+          ) : (
+            <kbd className="ml-auto rounded border px-1 text-[10px] leading-normal text-muted-foreground">
+              Ctrl K
+            </kbd>
+          )}
         </button>
 
         <button
@@ -96,7 +108,10 @@ export function Sidebar({
                   )}
                 >
                   <span className="flex size-5 flex-none items-center justify-center text-base leading-none">
-                    {node.icon ?? <FileText className="size-3.5 text-muted-foreground" />}
+                    <PageIcon
+                      icon={node.icon}
+                      fallback={<FileText className="size-3.5 text-muted-foreground" />}
+                    />
                   </span>
                   <span className="min-w-0 flex-1 truncate">{displayTitle(node.title)}</span>
                 </button>

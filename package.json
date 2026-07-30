@@ -22,7 +22,9 @@
     "dist:linux": "npm run build && electron-builder --linux"
   },
   "dependencies": {
-    "better-sqlite3": "^11.10.0"
+    "better-sqlite3": "^11.10.0",
+    "emojibase": "^17.0.0",
+    "emojibase-data": "^17.0.0"
   },
   "devDependencies": {
     "@electron/rebuild": "^3.7.2",

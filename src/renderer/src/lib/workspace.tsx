@@ -54,6 +54,8 @@ interface WorkspaceValue {
   duplicatePage(id: string): Promise<void>
   renamePage(id: string, title: string): void
   setPageIcon(id: string, icon: string | null): Promise<void>
+  setPageCover(id: string, cover: string | null): Promise<void>
+  setPageCoverPosition(id: string, position: number): Promise<void>
   toggleFavorite(id: string): Promise<void>
   movePage(input: MovePageInput): Promise<void>
   /** Called by the editor on every change; persists after a short pause. */
@@ -496,6 +498,25 @@ export function WorkspaceProvider({ children }: { children: ReactNode }): React.
     [refreshTree]
   )
 
+  const setPageCover = useCallback(
+    async (id: string, cover: string | null) => {
+      // A new cover starts centred; keeping the old offset would show a
+      // different slice of a differently-sized image.
+      await window.api.pages.update({ id, cover, coverPosition: 0.5 })
+      setCurrentPage((prev) =>
+        prev && prev.id === id ? { ...prev, cover, coverPosition: 0.5 } : prev
+      )
+      await refreshTree()
+    },
+    [refreshTree]
+  )
+
+  const setPageCoverPosition = useCallback(async (id: string, position: number) => {
+    const clamped = Math.min(1, Math.max(0, position))
+    await window.api.pages.update({ id, coverPosition: clamped })
+    setCurrentPage((prev) => (prev && prev.id === id ? { ...prev, coverPosition: clamped } : prev))
+  }, [])
+
   const toggleFavorite = useCallback(
     async (id: string) => {
       const page = await window.api.pages.get(id)
@@ -612,6 +633,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }): React.
       duplicatePage,
       renamePage,
       setPageIcon,
+      setPageCover,
+      setPageCoverPosition,
       toggleFavorite,
       movePage,
       updateContent,
@@ -651,6 +674,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }): React.
       duplicatePage,
       renamePage,
       setPageIcon,
+      setPageCover,
+      setPageCoverPosition,
       toggleFavorite,
       movePage,
       updateContent,

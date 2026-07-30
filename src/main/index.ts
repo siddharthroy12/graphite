@@ -1,8 +1,10 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, session, shell } from 'electron'
 import { closeDatabase, initDatabase } from './db'
+import { pruneImageFiles, registerIconProtocol, registerIconScheme } from './icons'
 import { registerIpcHandlers } from './ipc'
 import { buildAppMenu } from './menu'
+import { ICON_SCHEME } from '../shared/icon'
 
 const isDev = !app.isPackaged
 
@@ -25,12 +27,15 @@ let mainWindow: BrowserWindow | null = null
 /**
  * The app never loads remote code or makes network requests, so production gets
  * a `'self'`-only policy. Dev additionally allows the Vite dev server's inline
- * HMR preamble and websocket.
+ * HMR preamble and websocket. `img-src` also allows the icon scheme, which the
+ * main process serves uploaded page icons on — those are local files the user
+ * chose themselves, not remote content.
  */
 function applyContentSecurityPolicy(): void {
+  const images = `img-src 'self' data: blob: ${ICON_SCHEME}:`
   const policy = isDev
-    ? "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: http://localhost:*"
-    : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'"
+    ? `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; ${images}; font-src 'self' data:; connect-src 'self' ws: http://localhost:*`
+    : `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; ${images}; font-src 'self' data:; connect-src 'self'`
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
@@ -100,9 +105,14 @@ function sendCommand(command: string): void {
   mainWindow?.webContents.send('menu:command', command)
 }
 
+// Has to happen before the app is ready — see registerIconScheme.
+registerIconScheme()
+
 app.whenReady().then(() => {
   applyContentSecurityPolicy()
   initDatabase()
+  registerIconProtocol()
+  pruneImageFiles()
   registerIpcHandlers()
   buildAppMenu(sendCommand)
 

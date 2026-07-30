@@ -24,6 +24,11 @@ const api = {
     recent: (limit?: number) => ipcRenderer.invoke('pages:recent', limit),
     breadcrumb: (id: string) => ipcRenderer.invoke('pages:breadcrumb', id)
   },
+  images: {
+    /** Stores an uploaded image and resolves to the `file:` value naming it. */
+    upload: (data: Uint8Array, type: string, purpose: 'icon' | 'cover') =>
+      ipcRenderer.invoke('images:upload', { data, type, purpose })
+  },
   prefs: {
     get: () => ipcRenderer.invoke('prefs:get'),
     set: (patch: Partial<Preferences>) => ipcRenderer.invoke('prefs:set', patch)

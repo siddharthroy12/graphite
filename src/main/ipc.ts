@@ -20,6 +20,7 @@ import {
   setPreferences,
   updatePage
 } from './db'
+import { saveImageFile, type SaveImageInput } from './icons'
 
 /**
  * Wraps a handler so a thrown database error travels to the renderer as a
@@ -51,6 +52,8 @@ export function registerIpcHandlers(): void {
   handle('pages:search', (query: string) => searchPages(query))
   handle('pages:recent', (limit?: number) => getRecentPages(limit))
   handle('pages:breadcrumb', (id: string) => getBreadcrumb(id))
+
+  handle('images:upload', (input: SaveImageInput) => saveImageFile(input))
 
   handle('prefs:get', () => getPreferences())
   handle('prefs:set', (patch: Partial<Preferences>) => setPreferences(patch))
