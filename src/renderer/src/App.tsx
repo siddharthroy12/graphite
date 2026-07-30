@@ -156,10 +156,23 @@ export function App(): React.JSX.Element {
   return (
     <TooltipProvider delayDuration={400}>
       <div className="flex h-full w-full overflow-hidden">
-        {sidebarOpen && (
+        {/* The sidebar stays mounted so open/close can animate: the slot's
+            width transitions between its resized width and 0, and the inner
+            panel is anchored to the slot's right edge at a fixed width so it
+            slides out of view rather than reflowing as the slot shrinks. The
+            transition is dropped while the divider is being dragged, so
+            resizing tracks the pointer instead of lagging behind it. */}
+        <div
+          className={cn(
+            'relative flex-none overflow-hidden',
+            !resizing && 'transition-[width] duration-200 ease-out'
+          )}
+          style={{ width: sidebarOpen ? `${sidebarWidth}px` : 0 }}
+        >
           <div
-            className="relative flex-none"
+            className="absolute inset-y-0 right-0"
             style={{ width: `${sidebarWidth}px` }}
+            aria-hidden={!sidebarOpen}
           >
             <Sidebar
               onOpenSearch={() => setSearchOpen(true)}
@@ -172,12 +185,12 @@ export function App(): React.JSX.Element {
               onMouseDown={() => setResizing(true)}
               onDoubleClick={() => setSidebarWidth(DEFAULT_SIDEBAR_WIDTH)}
               className={cn(
-                'absolute inset-y-0 -right-1 w-2 cursor-col-resize',
+                'absolute inset-y-0 right-0 w-2 cursor-col-resize',
                 resizing && 'bg-ring/30'
               )}
             />
           </div>
-        )}
+        </div>
 
         <main className="flex min-w-0 flex-1 flex-col">
           <TabBar />

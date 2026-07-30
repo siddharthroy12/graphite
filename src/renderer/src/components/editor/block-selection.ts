@@ -27,6 +27,13 @@ const key = new PluginKey('blockSelection')
 const MARQUEE_THRESHOLD = 4
 
 /**
+ * Auto-scroll while a marquee is active: within this many px of the scroll
+ * host's top or bottom edge the page starts scrolling, fastest at the edge.
+ */
+const EDGE_ZONE = 40
+const MAX_SCROLL_SPEED = 18
+
+/**
  * Top-level blocks the selection covers, and whether the highlight should be
  * drawn — a partial selection inside one block stays a normal text highlight.
  */
@@ -169,6 +176,13 @@ export const BlockSelection = Extension.create({
 
           let origin: { x: number; y: number; below: boolean } | null = null
           let active = false
+          /** Last known pointer position, in viewport coordinates. */
+          let pointer = { x: 0, y: 0 }
+          /** Scroll position at the last scroll event, for origin tracking. */
+          let lastScrollTop = scrollHost.scrollTop
+          /** Current auto-scroll velocity in px/frame; 0 means no edge scroll. */
+          let scrollVelocity = 0
+          let scrollFrame: number | null = null
 
           /** True where a drag should lasso blocks rather than select text. */
           const canStart = (event: MouseEvent): boolean => {
@@ -216,13 +230,13 @@ export const BlockSelection = Extension.create({
             }
           }
 
-          const draw = (event: MouseEvent): void => {
+          const draw = (point: { x: number; y: number }): void => {
             if (!origin) return
             const wrapperRect = wrapper.getBoundingClientRect()
-            const top = Math.min(origin.y, event.clientY)
-            const bottom = Math.max(origin.y, event.clientY)
-            const left = Math.min(origin.x, event.clientX)
-            const right = Math.max(origin.x, event.clientX)
+            const top = Math.min(origin.y, point.y)
+            const bottom = Math.max(origin.y, point.y)
+            const left = Math.min(origin.x, point.x)
+            const right = Math.max(origin.x, point.x)
 
             marquee.style.top = `${top - wrapperRect.top}px`
             marquee.style.left = `${left - wrapperRect.left}px`
@@ -232,9 +246,54 @@ export const BlockSelection = Extension.create({
             selectWithin(top, bottom)
           }
 
+          // A scroll — wheel, keyboard, scrollbar, or the auto-scroll below —
+          // moves the content under a stationary pointer. Keep the origin glued
+          // to the document point it started on and redraw, so the box keeps
+          // reaching the pointer instead of freezing where it began.
+          const onScroll = (): void => {
+            const delta = scrollHost.scrollTop - lastScrollTop
+            lastScrollTop = scrollHost.scrollTop
+            if (!origin || delta === 0) return
+            origin.y -= delta
+            if (active) draw(pointer)
+          }
+
+          /** How fast to auto-scroll for the pointer's current position. */
+          const updateEdgeScroll = (): void => {
+            const rect = scrollHost.getBoundingClientRect()
+            if (pointer.y < rect.top + EDGE_ZONE) {
+              scrollVelocity =
+                -MAX_SCROLL_SPEED * Math.min(1, (rect.top + EDGE_ZONE - pointer.y) / EDGE_ZONE)
+            } else if (pointer.y > rect.bottom - EDGE_ZONE) {
+              scrollVelocity =
+                MAX_SCROLL_SPEED * Math.min(1, (pointer.y - (rect.bottom - EDGE_ZONE)) / EDGE_ZONE)
+            } else {
+              scrollVelocity = 0
+            }
+          }
+
+          // The scroll itself triggers `onScroll`, which does the redraw.
+          const stepScroll = (): void => {
+            if (!active || scrollVelocity === 0) {
+              scrollFrame = null
+              return
+            }
+            scrollHost.scrollTop += scrollVelocity
+            scrollFrame = requestAnimationFrame(stepScroll)
+          }
+
+          const stopEdgeScroll = (): void => {
+            scrollVelocity = 0
+            if (scrollFrame !== null) {
+              cancelAnimationFrame(scrollFrame)
+              scrollFrame = null
+            }
+          }
+
           const onMouseDown = (event: MouseEvent): void => {
             if (!canStart(event)) return
             origin = { x: event.clientX, y: event.clientY, below: belowContent(event.clientY) }
+            pointer = { x: event.clientX, y: event.clientY }
             // Stops the browser from starting its own text selection, which
             // would drag across the title and icon above the editor. A plain
             // click below the content is restored on mouseup.
@@ -243,6 +302,7 @@ export const BlockSelection = Extension.create({
 
           const onMouseMove = (event: MouseEvent): void => {
             if (!origin) return
+            pointer = { x: event.clientX, y: event.clientY }
 
             if (!active) {
               const moved =
@@ -255,13 +315,19 @@ export const BlockSelection = Extension.create({
               window.getSelection()?.removeAllRanges()
             }
 
-            draw(event)
+            updateEdgeScroll()
+            if (scrollVelocity !== 0 && scrollFrame === null) {
+              scrollFrame = requestAnimationFrame(stepScroll)
+            }
+
+            draw(pointer)
           }
 
           const finish = (): void => {
             const start = origin
             const wasActive = active
             origin = null
+            stopEdgeScroll()
 
             if (wasActive) {
               active = false
@@ -283,14 +349,17 @@ export const BlockSelection = Extension.create({
           }
 
           scrollHost.addEventListener('mousedown', onMouseDown)
+          scrollHost.addEventListener('scroll', onScroll)
           window.addEventListener('mousemove', onMouseMove)
           window.addEventListener('mouseup', finish)
 
           return {
             destroy: () => {
               scrollHost.removeEventListener('mousedown', onMouseDown)
+              scrollHost.removeEventListener('scroll', onScroll)
               window.removeEventListener('mousemove', onMouseMove)
               window.removeEventListener('mouseup', finish)
+              stopEdgeScroll()
               document.body.classList.remove('is-selecting-blocks')
               marquee.remove()
             }
