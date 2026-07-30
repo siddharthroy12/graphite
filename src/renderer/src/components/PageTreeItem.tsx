@@ -194,7 +194,7 @@ export function PageTreeItem({
               onSelect={() => onRequestDelete(node)}
             >
               <Trash2 className="size-4" />
-              Delete
+              Move to trash
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

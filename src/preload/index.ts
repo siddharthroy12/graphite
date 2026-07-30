@@ -17,12 +17,16 @@ const api = {
     get: (id: string) => ipcRenderer.invoke('pages:get', id),
     create: (input: CreatePageInput) => ipcRenderer.invoke('pages:create', input),
     update: (input: UpdatePageInput) => ipcRenderer.invoke('pages:update', input),
-    remove: (id: string) => ipcRenderer.invoke('pages:delete', id),
+    trash: (id: string) => ipcRenderer.invoke('pages:trash', id),
     duplicate: (id: string) => ipcRenderer.invoke('pages:duplicate', id),
     move: (input: MovePageInput) => ipcRenderer.invoke('pages:move', input),
     search: (query: string) => ipcRenderer.invoke('pages:search', query),
     recent: (limit?: number) => ipcRenderer.invoke('pages:recent', limit),
-    breadcrumb: (id: string) => ipcRenderer.invoke('pages:breadcrumb', id)
+    breadcrumb: (id: string) => ipcRenderer.invoke('pages:breadcrumb', id),
+    trashList: () => ipcRenderer.invoke('pages:trashList'),
+    restore: (id: string) => ipcRenderer.invoke('pages:restore', id),
+    permanentlyDelete: (id: string) => ipcRenderer.invoke('pages:permanentlyDelete', id),
+    emptyTrash: () => ipcRenderer.invoke('pages:emptyTrash')
   },
   images: {
     /** Stores an uploaded image and resolves to the `file:` value naming it. */

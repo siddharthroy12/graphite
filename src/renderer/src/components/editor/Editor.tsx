@@ -24,6 +24,8 @@ interface EditorProps {
   onChange(content: string, plainText: string): void
   /** Shift+Tab / Backspace at the very start moves focus back to the title. */
   onFocusTitle(): void
+  /** When false, the document is shown but can't be edited (e.g. trashed pages). */
+  editable?: boolean
 }
 
 function parseContent(raw: string): JSONContent | string {
@@ -40,10 +42,12 @@ export function Editor({
   pageId,
   initialContent,
   onChange,
-  onFocusTitle
+  onFocusTitle,
+  editable = true
 }: EditorProps): React.JSX.Element {
   const editor = useEditor(
     {
+      editable,
       extensions: [
         StarterKit.configure({
           // Replaced below with the syntax-highlighting version.
@@ -105,6 +109,13 @@ export function Editor({
     // Remount for a different page so undo history never crosses documents.
     [pageId]
   )
+
+  // The same page can flip between editable and not (trashing/restoring it)
+  // without its id changing, so keep the live instance in sync rather than
+  // relying on the remount above.
+  useEffect(() => {
+    editor?.setEditable(editable)
+  }, [editor, editable])
 
   // Links are informational while editing; a click should reach the OS browser.
   useEffect(() => {

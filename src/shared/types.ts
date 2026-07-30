@@ -21,6 +21,8 @@ export interface Page {
   position: number
   createdAt: number
   updatedAt: number
+  /** When the page was moved to trash; `null` if it's active. */
+  deletedAt: number | null
 }
 
 /** A page without its (potentially large) body — what the sidebar tree needs. */
@@ -36,6 +38,16 @@ export interface SearchResult {
   icon: string | null
   /** Text surrounding the match, for the result list. */
   snippet: string
+}
+
+/** A row in the trash view — just enough to list and restore it. */
+export interface TrashedPage {
+  id: string
+  title: string
+  icon: string | null
+  deletedAt: number
+  /** Title of the page it lived under, or `null` if it was a top-level page. */
+  parentTitle: string | null
 }
 
 export interface CreatePageInput {
@@ -97,13 +109,20 @@ export interface GraphiteApi {
     get(id: string): Promise<Page | null>
     create(input: CreatePageInput): Promise<Page>
     update(input: UpdatePageInput): Promise<Page | null>
-    /** Deletes the page and all of its descendants. Returns removed ids. */
-    remove(id: string): Promise<string[]>
+    /** Moves the page and its descendants to trash. Returns the affected ids. */
+    trash(id: string): Promise<string[]>
     duplicate(id: string): Promise<Page>
     move(input: MovePageInput): Promise<void>
     search(query: string): Promise<SearchResult[]>
     recent(limit?: number): Promise<PageSummary[]>
     breadcrumb(id: string): Promise<PageSummary[]>
+    trashList(): Promise<TrashedPage[]>
+    /** Brings a page back; reparents it to the top level if its parent is gone or also trashed. */
+    restore(id: string): Promise<Page | null>
+    /** Deletes a single trashed page and its descendants for good. Returns the affected ids. */
+    permanentlyDelete(id: string): Promise<string[]>
+    /** Empties the trash entirely. Returns the affected ids. */
+    emptyTrash(): Promise<string[]>
   }
   images: {
     /** Stores an uploaded image; resolves to the `file:` value naming it. */

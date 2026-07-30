@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
 import type { PageTreeNode } from '@shared/types'
-import { FileText, Plus, Search, Settings } from 'lucide-react'
+import { FileText, Plus, Search, Settings, Trash2 } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { displayTitle, flattenTree, PAGE_DRAG_TYPE } from '@/lib/tree'
 import { useWorkspace } from '@/lib/workspace'
 import { PageIcon } from './PageIcon'
 import { PageTreeItem } from './PageTreeItem'
+import { TrashPopover } from './TrashPopover'
 
 interface SidebarProps {
   onOpenSearch(): void
@@ -169,6 +170,21 @@ export function Sidebar({
           </div>
         </div>
       </ScrollArea>
+
+      {/* Pinned below the scrollable tree, like Search/Settings/New page above
+          it — an infrequent action, but one that shouldn't scroll out of
+          reach on a long page list. */}
+      <div className="flex-none px-2 pt-1 pb-2">
+        <TrashPopover>
+          <button
+            type="button"
+            className="flex h-7 w-full items-center gap-2 rounded-md px-2 text-sm text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent/60"
+          >
+            <Trash2 className="size-4" />
+            <span>Trash</span>
+          </button>
+        </TrashPopover>
+      </div>
     </aside>
   )
 }

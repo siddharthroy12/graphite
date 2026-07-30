@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { displayTitle, flattenTree } from '@/lib/tree'
+import { TRASH_RETENTION_DAYS } from '@shared/trash'
 
 interface DeleteDialogProps {
   node: PageTreeNode | null
@@ -21,7 +22,7 @@ export function DeleteDialog({
   onCancel,
   onConfirm
 }: DeleteDialogProps): React.JSX.Element {
-  // Deleting a parent takes its whole subtree, so say so explicitly.
+  // Trashing a parent takes its whole subtree, so say so explicitly.
   const descendants = node ? flattenTree(node.children).length : 0
 
   return (
@@ -31,14 +32,16 @@ export function DeleteDialog({
           {/* A long unbroken page title would otherwise widen the dialog's
               grid track past its max-width. */}
           <DialogTitle className="min-w-0 [overflow-wrap:anywhere]">
-            Delete “{node ? displayTitle(node.title) : ''}”?
+            Move “{node ? displayTitle(node.title) : ''}” to trash?
           </DialogTitle>
           <DialogDescription>
             {descendants > 0
-              ? `This also deletes ${descendants} nested ${
+              ? `This also moves ${descendants} nested ${
                   descendants === 1 ? 'page' : 'pages'
-                }. This cannot be undone.`
-              : 'This cannot be undone.'}
+                } to trash. `
+              : ''}
+            Pages in trash are deleted for good after {TRASH_RETENTION_DAYS} days, or you can
+            remove them sooner from there.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
@@ -49,7 +52,7 @@ export function DeleteDialog({
             variant="destructive"
             onClick={() => node && onConfirm(node.id)}
           >
-            Delete
+            Move to trash
           </Button>
         </DialogFooter>
       </DialogContent>

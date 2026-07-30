@@ -10,6 +10,8 @@ interface PageCoverProps {
   position: number
   onChange(cover: string | null): void
   onPositionChange(position: number): void
+  /** When true, the banner is display-only — no change/reposition controls. */
+  readOnly?: boolean
 }
 
 /**
@@ -21,7 +23,8 @@ export function PageCover({
   cover,
   position,
   onChange,
-  onPositionChange
+  onPositionChange,
+  readOnly = false
 }: PageCoverProps): React.JSX.Element | null {
   const parsed = parseCover(cover)
   const [repositioning, setRepositioning] = useState(false)
@@ -89,11 +92,13 @@ export function PageCover({
         <div className="size-full" style={{ backgroundImage: parsed.css }} />
       )}
 
-      {/* Controls sit bottom-right, revealed on hover like the icon's own. */}
+      {/* Controls sit bottom-right, revealed on hover like the icon's own.
+          Omitted entirely when read-only (e.g. a trashed page). */}
       <div
         className={cn(
           'absolute right-4 bottom-4 flex gap-1 transition-opacity',
-          repositioning ? 'opacity-100' : 'opacity-0 group-hover/cover:opacity-100'
+          repositioning ? 'opacity-100' : 'opacity-0 group-hover/cover:opacity-100',
+          readOnly && 'hidden'
         )}
       >
         {repositioning ? (

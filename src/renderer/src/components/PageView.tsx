@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PageSummary, PageTreeNode } from '@shared/types'
+import { daysUntilPurge } from '@shared/trash'
 import {
   ChevronRight,
   Copy,
   Image as ImageIcon,
   MoreHorizontal,
   Plus,
+  RotateCcw,
   Smile,
   Star,
   Trash2
@@ -43,6 +45,8 @@ export function PageView({ onRequestDelete }: PageViewProps): React.JSX.Element 
     createPage,
     duplicatePage,
     toggleFavorite,
+    restorePage,
+    permanentlyDeletePage,
     updateContent,
     openPage
   } = useWorkspace()
@@ -138,60 +142,106 @@ export function PageView({ onRequestDelete }: PageViewProps): React.JSX.Element 
     </nav>
   )
 
+  const trashed = currentPage.deletedAt !== null
+
   return (
     <div className="h-full overflow-y-auto">
-      {/* A header strip across the top of the view — trail on the left, page
-          actions on the right — evenly inset by 12px and in the same place
-          whether or not the page has a cover. It stays put while the page
-          scrolls beneath it, so it needs its own background. It has to live
-          outside the content column in any case: with a cover, a breadcrumb
-          between banner and icon would push the icon off the banner's edge by
-          however many ancestors the page happens to have. */}
-      <div className="sticky top-0 z-20 flex items-center justify-between gap-2 bg-background p-3">
-        {trail}
-
-        {/* Page-level actions live with the trail rather than in the tab bar:
-            they act on this page, not on the window's tabs. */}
-        <div className="flex flex-none items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7"
-            title={currentPage.favorite ? 'Remove from favorites' : 'Add to favorites'}
-            aria-label={currentPage.favorite ? 'Remove from favorites' : 'Add to favorites'}
-            onClick={() => void toggleFavorite(currentPage.id)}
-          >
-            <Star className={cn('size-4', currentPage.favorite && 'fill-current text-amber-500')} />
-          </Button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-7" aria-label="Page options">
-                <MoreHorizontal className="size-4" />
+      {/* Banner and header pin together as one sticky block — two separate
+          `sticky top-0` siblings would stack at the same offset and overlap. */}
+      <div className="sticky top-0 z-20">
+        {trashed && (
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 bg-destructive px-4 py-2.5 text-sm text-destructive-foreground">
+            <span className="text-center">
+              This page is in the trash. It will be permanently deleted in{' '}
+              {daysUntilPurge(currentPage.deletedAt!)} days.
+            </span>
+            <div className="flex flex-none items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="h-7"
+                onClick={() => void restorePage(currentPage.id)}
+              >
+                <RotateCcw className="size-3.5" />
+                Restore page
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onSelect={() => void createPage(currentPage.id)}>
-                <Plus className="size-4" />
-                Add subpage
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => void duplicatePage(currentPage.id)}>
-                <Copy className="size-4" />
-                Duplicate
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                variant="destructive"
-                onSelect={() => {
-                  const node = findNode(tree, currentPage.id)
-                  if (node) onRequestDelete(node)
+              <Button
+                variant="secondary"
+                size="sm"
+                className="h-7"
+                onClick={() => {
+                  const confirmed = window.confirm(
+                    `Delete "${displayTitle(currentPage.title)}" for good? This cannot be undone.`
+                  )
+                  if (confirmed) void permanentlyDeletePage(currentPage.id)
                 }}
               >
-                <Trash2 className="size-4" />
-                Delete page
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <Trash2 className="size-3.5" />
+                Permanently delete
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* A header strip across the top of the view — trail on the left, page
+            actions on the right — evenly inset by 12px and in the same place
+            whether or not the page has a cover. It needs its own background,
+            since the page scrolls beneath the sticky block. It has to live
+            outside the content column in any case: with a cover, a breadcrumb
+            between banner and icon would push the icon off the banner's edge by
+            however many ancestors the page happens to have. */}
+        <div className="flex items-center justify-between gap-2 bg-background p-3">
+          {trail}
+
+          {/* Page-level actions live with the trail rather than in the tab
+              bar: they act on this page, not on the window's tabs. A trashed
+              page hides them — the banner's restore/delete are the only
+              meaningful actions until it's back. */}
+          {!trashed && (
+            <div className="flex flex-none items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7"
+                title={currentPage.favorite ? 'Remove from favorites' : 'Add to favorites'}
+                aria-label={currentPage.favorite ? 'Remove from favorites' : 'Add to favorites'}
+                onClick={() => void toggleFavorite(currentPage.id)}
+              >
+                <Star
+                  className={cn('size-4', currentPage.favorite && 'fill-current text-amber-500')}
+                />
+              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="size-7" aria-label="Page options">
+                    <MoreHorizontal className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onSelect={() => void createPage(currentPage.id)}>
+                    <Plus className="size-4" />
+                    Add subpage
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => void duplicatePage(currentPage.id)}>
+                    <Copy className="size-4" />
+                    Duplicate
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onSelect={() => {
+                      const node = findNode(tree, currentPage.id)
+                      if (node) onRequestDelete(node)
+                    }}
+                  >
+                    <Trash2 className="size-4" />
+                    Move to trash
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
         </div>
       </div>
 
@@ -201,6 +251,7 @@ export function PageView({ onRequestDelete }: PageViewProps): React.JSX.Element 
           position={currentPage.coverPosition}
           onChange={(cover) => void setPageCover(currentPage.id, cover)}
           onPositionChange={(position) => void setPageCoverPosition(currentPage.id, position)}
+          readOnly={trashed}
         />
       )}
 
@@ -217,23 +268,30 @@ export function PageView({ onRequestDelete }: PageViewProps): React.JSX.Element 
               currentPage.cover && 'relative -mt-8'
             )}
           >
-            <IconPicker
-              value={currentPage.icon}
-              onChange={(icon) => void setPageIcon(currentPage.id, icon)}
-            >
-              <button
-                type="button"
-                className="flex items-center gap-2 rounded-md text-left text-6xl leading-none transition-opacity hover:opacity-80"
-              >
+            {trashed ? (
+              <span className="text-6xl leading-none">
                 <PageIcon icon={currentPage.icon} />
-              </button>
-            </IconPicker>
+              </span>
+            ) : (
+              <IconPicker
+                value={currentPage.icon}
+                onChange={(icon) => void setPageIcon(currentPage.id, icon)}
+              >
+                <button
+                  type="button"
+                  className="flex items-center gap-2 rounded-md text-left text-6xl leading-none transition-opacity hover:opacity-80"
+                >
+                  <PageIcon icon={currentPage.icon} />
+                </button>
+              </IconPicker>
+            )}
           </div>
         )}
 
         {/* Only the controls the page is missing, revealed on hover — the same
-            way the icon button behaved before covers existed. */}
-        {(!currentPage.icon || !currentPage.cover) && (
+            way the icon button behaved before covers existed. Not offered on a
+            trashed page, which can't be edited. */}
+        {!trashed && (!currentPage.icon || !currentPage.cover) && (
           <div
             className={cn(
               'mb-2 flex gap-1 opacity-0 transition-opacity group-hover/page:opacity-100',
@@ -280,6 +338,7 @@ export function PageView({ onRequestDelete }: PageViewProps): React.JSX.Element 
           rows={1}
           placeholder="Untitled"
           spellCheck
+          readOnly={trashed}
           className="w-full resize-none overflow-hidden bg-transparent text-[2.5rem] leading-tight font-bold tracking-tight outline-none placeholder:text-muted-foreground/40"
           onChange={(event) => {
             renamePage(currentPage.id, event.target.value)
@@ -300,6 +359,7 @@ export function PageView({ onRequestDelete }: PageViewProps): React.JSX.Element 
             initialContent={currentPage.content}
             onChange={handleContentChange}
             onFocusTitle={focusTitle}
+            editable={!trashed}
           />
         </div>
       </div>

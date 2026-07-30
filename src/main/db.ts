@@ -10,6 +10,7 @@ import type {
   PageTreeNode,
   Preferences,
   SearchResult,
+  TrashedPage,
   UpdatePageInput
 } from '../shared/types'
 
@@ -27,6 +28,7 @@ interface PageRow {
   position: number
   created_at: number
   updated_at: number
+  deleted_at: number | null
 }
 
 type SummaryRow = Omit<PageRow, 'content' | 'plain_text'>
@@ -59,7 +61,8 @@ function toPage(row: PageRow): Page {
     favorite: row.favorite === 1,
     position: row.position,
     createdAt: row.created_at,
-    updatedAt: row.updated_at
+    updatedAt: row.updated_at,
+    deletedAt: row.deleted_at
   }
 }
 
@@ -74,12 +77,13 @@ function toSummary(row: SummaryRow): PageSummary {
     favorite: row.favorite === 1,
     position: row.position,
     createdAt: row.created_at,
-    updatedAt: row.updated_at
+    updatedAt: row.updated_at,
+    deletedAt: row.deleted_at
   }
 }
 
 const SUMMARY_COLUMNS =
-  'id, parent_id, title, icon, cover, cover_position, favorite, position, created_at, updated_at'
+  'id, parent_id, title, icon, cover, cover_position, favorite, position, created_at, updated_at, deleted_at'
 
 export function initDatabase(): void {
   dbPath = join(app.getPath('userData'), 'graphite.db')
@@ -101,11 +105,15 @@ export function initDatabase(): void {
       favorite    INTEGER NOT NULL DEFAULT 0,
       position    INTEGER NOT NULL DEFAULT 0,
       created_at  INTEGER NOT NULL,
-      updated_at  INTEGER NOT NULL
+      updated_at  INTEGER NOT NULL,
+      deleted_at  INTEGER
     );
 
     CREATE INDEX IF NOT EXISTS idx_pages_parent ON pages(parent_id, position);
     CREATE INDEX IF NOT EXISTS idx_pages_updated ON pages(updated_at DESC);
+    -- idx_pages_deleted is created in migrate(): on an existing database this
+    -- block is a no-op (the table already exists), so an index on a column
+    -- that hasn't been added yet would fail here.
 
     CREATE TABLE IF NOT EXISTS preferences (
       key   TEXT PRIMARY KEY,
@@ -158,6 +166,10 @@ function migrate(): void {
   if (!columns.has('cover_position')) {
     db.exec('ALTER TABLE pages ADD COLUMN cover_position REAL NOT NULL DEFAULT 0.5')
   }
+  if (!columns.has('deleted_at')) {
+    db.exec('ALTER TABLE pages ADD COLUMN deleted_at INTEGER')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_pages_deleted ON pages(deleted_at)')
+  }
 }
 
 export function getDatabasePath(): string {
@@ -188,7 +200,7 @@ function nextPosition(parentId: string | null): number {
   const row = db
     .prepare<[string | null], { next: number }>(
       `SELECT COALESCE(MAX(position), -1) + 1 AS next FROM pages
-       WHERE parent_id IS ?`
+       WHERE parent_id IS ? AND deleted_at IS NULL`
     )
     .get(parentId)
   return row?.next ?? 0
@@ -214,19 +226,22 @@ export function createPage(input: CreatePageInput): Page {
     favorite: 0,
     position: nextPosition(parentId),
     created_at: now,
-    updated_at: now
+    updated_at: now,
+    deleted_at: null
   }
 
   db.prepare(
-    `INSERT INTO pages (id, parent_id, title, icon, cover, cover_position, content, plain_text, favorite, position, created_at, updated_at)
-     VALUES (@id, @parent_id, @title, @icon, @cover, @cover_position, @content, @plain_text, @favorite, @position, @created_at, @updated_at)`
+    `INSERT INTO pages (id, parent_id, title, icon, cover, cover_position, content, plain_text, favorite, position, created_at, updated_at, deleted_at)
+     VALUES (@id, @parent_id, @title, @icon, @cover, @cover_position, @content, @plain_text, @favorite, @position, @created_at, @updated_at, @deleted_at)`
   ).run(row)
 
   return toPage(row)
 }
 
 function pageExists(id: string): boolean {
-  return db.prepare('SELECT 1 FROM pages WHERE id = ?').get(id) !== undefined
+  return (
+    db.prepare('SELECT 1 FROM pages WHERE id = ? AND deleted_at IS NULL').get(id) !== undefined
+  )
 }
 
 export function getPage(id: string): Page | null {
@@ -288,16 +303,108 @@ function descendantIds(id: string): string[] {
     .map((r) => r.id)
 }
 
-export function deletePage(id: string): string[] {
-  const removed = descendantIds(id)
-  if (removed.length === 0) return []
+/** Moves a page and its subtree to trash by stamping `deleted_at`, leaving the rows in place. */
+export function trashPage(id: string): string[] {
+  const ids = descendantIds(id)
+  if (ids.length === 0) return []
+
+  const now = Date.now()
+  db.transaction(() => {
+    const stamp = db.prepare('UPDATE pages SET deleted_at = ? WHERE id = ?')
+    for (const pageId of ids) stamp.run(now, pageId)
+  })()
+
+  return ids
+}
+
+/**
+ * Restores a single trashed page — not its descendants, which stay trashed
+ * until restored themselves. If its original parent is gone or still
+ * trashed, it's reparented to the top level rather than left pointing at a
+ * parent an active page is never allowed to have.
+ */
+export function restorePage(id: string): Page | null {
+  const row = db.prepare<[string], PageRow>('SELECT * FROM pages WHERE id = ?').get(id)
+  if (!row || row.deleted_at === null) return row ? toPage(row) : null
+
+  let parentId = row.parent_id
+  if (parentId !== null) {
+    const parent = db
+      .prepare<[string], { deleted_at: number | null }>('SELECT deleted_at FROM pages WHERE id = ?')
+      .get(parentId)
+    if (!parent || parent.deleted_at !== null) parentId = null
+  }
+
+  db.transaction(() => {
+    db.prepare(
+      'UPDATE pages SET deleted_at = NULL, parent_id = ?, position = ?, updated_at = ? WHERE id = ?'
+    ).run(parentId, nextPosition(parentId), Date.now(), id)
+  })()
+
+  return getPage(id)
+}
+
+/** Deletes one trashed page and its (also trashed) subtree for good. */
+export function permanentlyDeletePage(id: string): string[] {
+  const ids = descendantIds(id)
+  if (ids.length === 0) return []
 
   // ON DELETE CASCADE removes the descendants; the FTS triggers follow.
   db.transaction(() => {
     db.prepare('DELETE FROM pages WHERE id = ?').run(id)
   })()
 
-  return removed
+  return ids
+}
+
+export function getTrash(): TrashedPage[] {
+  return db
+    .prepare<
+      [],
+      {
+        id: string
+        title: string
+        icon: string | null
+        deleted_at: number
+        parent_title: string | null
+      }
+    >(
+      `SELECT p.id AS id,
+              p.title AS title,
+              p.icon AS icon,
+              p.deleted_at AS deleted_at,
+              parent.title AS parent_title
+       FROM pages p
+       LEFT JOIN pages parent ON parent.id = p.parent_id
+       WHERE p.deleted_at IS NOT NULL
+       ORDER BY p.deleted_at DESC`
+    )
+    .all()
+    .map((row) => ({
+      id: row.id,
+      title: row.title,
+      icon: row.icon,
+      deletedAt: row.deleted_at,
+      parentTitle: row.parent_title
+    }))
+}
+
+export function emptyTrash(): string[] {
+  const ids = db
+    .prepare<[], { id: string }>('SELECT id FROM pages WHERE deleted_at IS NOT NULL')
+    .all()
+    .map((row) => row.id)
+  if (ids.length === 0) return []
+
+  db.prepare('DELETE FROM pages WHERE deleted_at IS NOT NULL').run()
+  return ids
+}
+
+/** Purges anything trashed longer than `maxAgeMs`. Cascade takes any descendants with it. */
+export function purgeExpiredTrash(maxAgeMs: number): number {
+  const cutoff = Date.now() - maxAgeMs
+  return db.prepare('DELETE FROM pages WHERE deleted_at IS NOT NULL AND deleted_at <= ?').run(cutoff)
+    .changes
 }
 
 export function duplicatePage(id: string): Page {
@@ -327,7 +434,7 @@ export function duplicatePage(id: string): Page {
       const { sourceId, copyId: newParentId } = queue.shift()!
       const children = db
         .prepare<[string], PageRow>(
-          'SELECT * FROM pages WHERE parent_id IS ? ORDER BY position'
+          'SELECT * FROM pages WHERE parent_id IS ? AND deleted_at IS NULL ORDER BY position'
         )
         .all(sourceId)
 
@@ -371,7 +478,7 @@ export function movePage({ id, parentId, index }: MovePageInput): void {
   db.transaction(() => {
     const siblings = db
       .prepare<[string | null], { id: string }>(
-        'SELECT id FROM pages WHERE parent_id IS ? ORDER BY position'
+        'SELECT id FROM pages WHERE parent_id IS ? AND deleted_at IS NULL ORDER BY position'
       )
       .all(parentId)
       .map((r) => r.id)
@@ -393,7 +500,7 @@ export function movePage({ id, parentId, index }: MovePageInput): void {
 export function getPageTree(): PageTreeNode[] {
   const rows = db
     .prepare<[], SummaryRow>(
-      `SELECT ${SUMMARY_COLUMNS} FROM pages ORDER BY position, created_at`
+      `SELECT ${SUMMARY_COLUMNS} FROM pages WHERE deleted_at IS NULL ORDER BY position, created_at`
     )
     .all()
 
@@ -427,10 +534,13 @@ export function getBreadcrumb(id: string): PageSummary[] {
               p.parent_id AS parent_id,
               p.title AS title,
               p.icon AS icon,
+              p.cover AS cover,
+              p.cover_position AS cover_position,
               p.favorite AS favorite,
               p.position AS position,
               p.created_at AS created_at,
-              p.updated_at AS updated_at
+              p.updated_at AS updated_at,
+              p.deleted_at AS deleted_at
        FROM ancestry a JOIN pages p ON p.id = a.node_id
        ORDER BY a.depth DESC`
     )
@@ -442,7 +552,7 @@ export function getBreadcrumb(id: string): PageSummary[] {
 export function getRecentPages(limit = 12): PageSummary[] {
   return db
     .prepare<[number], SummaryRow>(
-      `SELECT ${SUMMARY_COLUMNS} FROM pages ORDER BY updated_at DESC LIMIT ?`
+      `SELECT ${SUMMARY_COLUMNS} FROM pages WHERE deleted_at IS NULL ORDER BY updated_at DESC LIMIT ?`
     )
     .all(limit)
     .map(toSummary)
@@ -475,7 +585,7 @@ export function searchPages(query: string): SearchResult[] {
               snippet(pages_fts, 1, '', '', '…', 12) AS snippet
        FROM pages_fts
        JOIN pages p ON p.rowid = pages_fts.rowid
-       WHERE pages_fts MATCH ?
+       WHERE pages_fts MATCH ? AND p.deleted_at IS NULL
        ORDER BY rank
        LIMIT 30`
     )

@@ -51,6 +51,8 @@ interface WorkspaceValue {
 
   createPage(parentId?: string | null): Promise<string | null>
   deletePage(id: string): Promise<void>
+  restorePage(id: string): Promise<void>
+  permanentlyDeletePage(id: string): Promise<void>
   duplicatePage(id: string): Promise<void>
   renamePage(id: string, title: string): void
   setPageIcon(id: string, icon: string | null): Promise<void>
@@ -429,15 +431,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }): React.
     [activeTabId, refreshTree]
   )
 
-  const deletePage = useCallback(async (id: string) => {
-    pending.current.delete(id)
-
-    const removed = new Set(await window.api.pages.remove(id))
-    const nextTree = await window.api.pages.tree()
-    setTree(nextTree)
-
-    // Any tab pointing into the deleted subtree falls back to an empty tab
-    // rather than rendering a page that no longer exists.
+  // Drops a set of removed page ids out of every tab: a tab sitting on one of
+  // them falls back to an empty tab, and any history entry is pruned so
+  // back/forward can't return to a page that no longer exists.
+  const dropTabsInto = useCallback((removed: Set<string>) => {
     setTabs((prev) => {
       const next = prev.map((tab) =>
         tab.pageId && removed.has(tab.pageId)
@@ -458,6 +455,39 @@ export function WorkspaceProvider({ children }: { children: ReactNode }): React.
       }))
     })
   }, [])
+
+  // Trashing keeps the row but marks it deleted; a tab on it still clears,
+  // since a trashed page shouldn't linger on screen unless reopened from trash.
+  const deletePage = useCallback(
+    async (id: string) => {
+      pending.current.delete(id)
+      const trashed = new Set(await window.api.pages.trash(id))
+      setTree(await window.api.pages.tree())
+      dropTabsInto(trashed)
+    },
+    [dropTabsInto]
+  )
+
+  // Restoring a trashed page. If it's currently open (viewed via the trash
+  // banner), swap in the restored copy so its `deletedAt` clears and the
+  // banner disappears without a reload.
+  const restorePage = useCallback(
+    async (id: string) => {
+      const restored = await window.api.pages.restore(id)
+      await refreshTree()
+      if (restored) setCurrentPage((prev) => (prev && prev.id === id ? restored : prev))
+    },
+    [refreshTree]
+  )
+
+  const permanentlyDeletePage = useCallback(
+    async (id: string) => {
+      pending.current.delete(id)
+      const removed = new Set(await window.api.pages.permanentlyDelete(id))
+      dropTabsInto(removed)
+    },
+    [dropTabsInto]
+  )
 
   const duplicatePage = useCallback(
     async (id: string) => {
@@ -630,6 +660,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }): React.
       goForward,
       createPage,
       deletePage,
+      restorePage,
+      permanentlyDeletePage,
       duplicatePage,
       renamePage,
       setPageIcon,
@@ -671,6 +703,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }): React.
       goForward,
       createPage,
       deletePage,
+      restorePage,
+      permanentlyDeletePage,
       duplicatePage,
       renamePage,
       setPageIcon,

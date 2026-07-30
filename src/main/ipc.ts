@@ -7,17 +7,21 @@ import type {
 } from '../shared/types'
 import {
   createPage,
-  deletePage,
   duplicatePage,
+  emptyTrash,
   getBreadcrumb,
   getDatabasePath,
   getPage,
   getPageTree,
   getPreferences,
   getRecentPages,
+  getTrash,
   movePage,
+  permanentlyDeletePage,
+  restorePage,
   searchPages,
   setPreferences,
+  trashPage,
   updatePage
 } from './db'
 import { saveImageFile, type SaveImageInput } from './icons'
@@ -46,12 +50,16 @@ export function registerIpcHandlers(): void {
   handle('pages:get', (id: string) => getPage(id))
   handle('pages:create', (input: CreatePageInput) => createPage(input ?? {}))
   handle('pages:update', (input: UpdatePageInput) => updatePage(input))
-  handle('pages:delete', (id: string) => deletePage(id))
+  handle('pages:trash', (id: string) => trashPage(id))
   handle('pages:duplicate', (id: string) => duplicatePage(id))
   handle('pages:move', (input: MovePageInput) => movePage(input))
   handle('pages:search', (query: string) => searchPages(query))
   handle('pages:recent', (limit?: number) => getRecentPages(limit))
   handle('pages:breadcrumb', (id: string) => getBreadcrumb(id))
+  handle('pages:trashList', () => getTrash())
+  handle('pages:restore', (id: string) => restorePage(id))
+  handle('pages:permanentlyDelete', (id: string) => permanentlyDeletePage(id))
+  handle('pages:emptyTrash', () => emptyTrash())
 
   handle('images:upload', (input: SaveImageInput) => saveImageFile(input))
 

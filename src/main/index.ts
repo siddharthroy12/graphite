@@ -1,10 +1,11 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, session, shell } from 'electron'
-import { closeDatabase, initDatabase } from './db'
+import { closeDatabase, initDatabase, purgeExpiredTrash } from './db'
 import { pruneImageFiles, registerIconProtocol, registerIconScheme } from './icons'
 import { registerIpcHandlers } from './ipc'
 import { buildAppMenu } from './menu'
 import { ICON_SCHEME } from '../shared/icon'
+import { TRASH_RETENTION_MS } from '../shared/trash'
 
 const isDev = !app.isPackaged
 
@@ -21,6 +22,9 @@ const TRAFFIC_LIGHT_DIAMETER = 12
  * visible circles, so pure centring reads as a touch low. Tuned by eye.
  */
 const TRAFFIC_LIGHT_NUDGE = 2
+
+/** How often the trash is swept for anything past its retention period. */
+const TRASH_SWEEP_INTERVAL_MS = 60 * 60 * 1000
 
 let mainWindow: BrowserWindow | null = null
 
@@ -115,6 +119,11 @@ app.whenReady().then(() => {
   pruneImageFiles()
   registerIpcHandlers()
   buildAppMenu(sendCommand)
+
+  // Catches anything that expired while the app was closed; the interval
+  // below catches it if the app is simply left open past that point.
+  purgeExpiredTrash(TRASH_RETENTION_MS)
+  setInterval(() => purgeExpiredTrash(TRASH_RETENTION_MS), TRASH_SWEEP_INTERVAL_MS)
 
   mainWindow = createWindow()
 
