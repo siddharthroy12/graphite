@@ -223,15 +223,6 @@ export function PageTreeItem({
             onRequestDelete={onRequestDelete}
           />
         ))}
-
-      {expanded && !hasChildren && (
-        <div
-          className="text-xs text-muted-foreground/70 select-none"
-          style={{ paddingLeft: `${(depth + 1) * 12 + 28}px` }}
-        >
-          No pages inside
-        </div>
-      )}
     </div>
   )
 }
