@@ -56,6 +56,7 @@ interface WorkspaceValue {
   duplicatePage(id: string): Promise<void>
   renamePage(id: string, title: string): void
   setPageIcon(id: string, icon: string | null): Promise<void>
+  setPageFont(id: string, font: string): void
   setPageCover(id: string, cover: string | null): Promise<void>
   setPageCoverPosition(id: string, position: number): Promise<void>
   toggleFavorite(id: string): Promise<void>
@@ -528,6 +529,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }): React.
     [refreshTree]
   )
 
+  const setPageFont = useCallback((id: string, font: string) => {
+    // Font lives only on the open page and the tree doesn't render it, so this
+    // updates local state and persists without a tree refresh.
+    setCurrentPage((prev) => (prev && prev.id === id ? { ...prev, font } : prev))
+    void window.api.pages.update({ id, font })
+  }, [])
+
   const setPageCover = useCallback(
     async (id: string, cover: string | null) => {
       // A new cover starts centred; keeping the old offset would show a
@@ -665,6 +673,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }): React.
       duplicatePage,
       renamePage,
       setPageIcon,
+      setPageFont,
       setPageCover,
       setPageCoverPosition,
       toggleFavorite,
@@ -708,6 +717,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }): React.
       duplicatePage,
       renamePage,
       setPageIcon,
+      setPageFont,
       setPageCover,
       setPageCoverPosition,
       toggleFavorite,

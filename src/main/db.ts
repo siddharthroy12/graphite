@@ -22,6 +22,7 @@ interface PageRow {
   icon: string | null
   cover: string | null
   cover_position: number
+  font: string
   content: string
   plain_text: string
   favorite: number
@@ -56,6 +57,7 @@ function toPage(row: PageRow): Page {
     icon: row.icon,
     cover: row.cover,
     coverPosition: row.cover_position,
+    font: row.font,
     content: row.content,
     plainText: row.plain_text,
     favorite: row.favorite === 1,
@@ -74,6 +76,7 @@ function toSummary(row: SummaryRow): PageSummary {
     icon: row.icon,
     cover: row.cover,
     coverPosition: row.cover_position,
+    font: row.font,
     favorite: row.favorite === 1,
     position: row.position,
     createdAt: row.created_at,
@@ -83,7 +86,7 @@ function toSummary(row: SummaryRow): PageSummary {
 }
 
 const SUMMARY_COLUMNS =
-  'id, parent_id, title, icon, cover, cover_position, favorite, position, created_at, updated_at, deleted_at'
+  'id, parent_id, title, icon, cover, cover_position, font, favorite, position, created_at, updated_at, deleted_at'
 
 export function initDatabase(): void {
   dbPath = join(app.getPath('userData'), 'graphite.db')
@@ -100,6 +103,7 @@ export function initDatabase(): void {
       icon        TEXT,
       cover       TEXT,
       cover_position REAL NOT NULL DEFAULT 0.5,
+      font        TEXT NOT NULL DEFAULT 'default',
       content     TEXT NOT NULL DEFAULT '',
       plain_text  TEXT NOT NULL DEFAULT '',
       favorite    INTEGER NOT NULL DEFAULT 0,
@@ -170,6 +174,9 @@ function migrate(): void {
     db.exec('ALTER TABLE pages ADD COLUMN deleted_at INTEGER')
     db.exec('CREATE INDEX IF NOT EXISTS idx_pages_deleted ON pages(deleted_at)')
   }
+  if (!columns.has('font')) {
+    db.exec("ALTER TABLE pages ADD COLUMN font TEXT NOT NULL DEFAULT 'default'")
+  }
 }
 
 export function getDatabasePath(): string {
@@ -221,6 +228,7 @@ export function createPage(input: CreatePageInput): Page {
     icon: input.icon ?? null,
     cover: input.cover ?? null,
     cover_position: input.coverPosition ?? 0.5,
+    font: input.font ?? 'default',
     content: '',
     plain_text: '',
     favorite: 0,
@@ -231,8 +239,8 @@ export function createPage(input: CreatePageInput): Page {
   }
 
   db.prepare(
-    `INSERT INTO pages (id, parent_id, title, icon, cover, cover_position, content, plain_text, favorite, position, created_at, updated_at, deleted_at)
-     VALUES (@id, @parent_id, @title, @icon, @cover, @cover_position, @content, @plain_text, @favorite, @position, @created_at, @updated_at, @deleted_at)`
+    `INSERT INTO pages (id, parent_id, title, icon, cover, cover_position, font, content, plain_text, favorite, position, created_at, updated_at, deleted_at)
+     VALUES (@id, @parent_id, @title, @icon, @cover, @cover_position, @font, @content, @plain_text, @favorite, @position, @created_at, @updated_at, @deleted_at)`
   ).run(row)
 
   return toPage(row)
@@ -275,6 +283,7 @@ export function updatePage(input: UpdatePageInput): Page | null {
   if (input.icon !== undefined) assign('icon', input.icon)
   if (input.cover !== undefined) assign('cover', input.cover)
   if (input.coverPosition !== undefined) assign('cover_position', input.coverPosition)
+  if (input.font !== undefined) assign('font', input.font)
   if (input.content !== undefined) assign('content', input.content)
   if (input.plainText !== undefined) assign('plain_text', input.plainText)
   if (input.favorite !== undefined) assign('favorite', input.favorite ? 1 : 0)
@@ -417,7 +426,8 @@ export function duplicatePage(id: string): Page {
       title: source.title ? `${source.title} (copy)` : '',
       icon: source.icon,
       cover: source.cover,
-      coverPosition: source.coverPosition
+      coverPosition: source.coverPosition,
+      font: source.font
     })
     updatePage({
       id: rootCopy.id,
@@ -444,7 +454,8 @@ export function duplicatePage(id: string): Page {
           title: child.title,
           icon: child.icon,
           cover: child.cover,
-          coverPosition: child.cover_position
+          coverPosition: child.cover_position,
+          font: child.font
         })
         updatePage({
           id: childCopy.id,
@@ -536,6 +547,7 @@ export function getBreadcrumb(id: string): PageSummary[] {
               p.icon AS icon,
               p.cover AS cover,
               p.cover_position AS cover_position,
+              p.font AS font,
               p.favorite AS favorite,
               p.position AS position,
               p.created_at AS created_at,

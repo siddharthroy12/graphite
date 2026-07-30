@@ -420,6 +420,26 @@ body.is-selecting-blocks * {
   color: inherit;
 }
 
+/* Per-page body fonts, chosen from the page options menu. Defined as explicit
+   classes rather than Tailwind's font-* utilities: this project's Tailwind
+   theme doesn't define --font-serif, so `font-serif` would resolve to nothing.
+   Every page always carries exactly one of these (default included), so
+   `default` has to spell out the sans stack to reset serif/mono, not rely on
+   an absent class. Code blocks keep their own mono via the rules above. */
+.page-font-default {
+  font-family:
+    ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, system-ui, sans-serif;
+}
+
+.page-font-serif {
+  font-family: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
+}
+
+.page-font-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+}
+
 /* No margin-top of its own: the generic `.tiptap > * + *` rule below already
    gives every block the same `--block-gap`, and this selector is more
    specific (adds an element type to the same two classes) — declaring

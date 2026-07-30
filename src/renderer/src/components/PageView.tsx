@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PageSummary, PageTreeNode } from '@shared/types'
 import { daysUntilPurge } from '@shared/trash'
+import { DEFAULT_PAGE_FONT, PAGE_FONTS, isPageFont, pageFontClass, type PageFont } from '@shared/font'
 import {
   ChevronRight,
   Copy,
@@ -47,6 +48,7 @@ export function PageView({ onRequestDelete }: PageViewProps): React.JSX.Element 
     toggleFavorite,
     restorePage,
     permanentlyDeletePage,
+    setPageFont,
     updateContent,
     openPage
   } = useWorkspace()
@@ -143,6 +145,7 @@ export function PageView({ onRequestDelete }: PageViewProps): React.JSX.Element 
   )
 
   const trashed = currentPage.deletedAt !== null
+  const font: PageFont = isPageFont(currentPage.font) ? currentPage.font : DEFAULT_PAGE_FONT
 
   return (
     <div className="h-full overflow-y-auto">
@@ -218,7 +221,41 @@ export function PageView({ onRequestDelete }: PageViewProps): React.JSX.Element 
                     <MoreHorizontal className="size-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuContent align="end" className="w-56">
+                  {/* Font picker — a segmented row of previews, like Notion's.
+                      Plain buttons, not menu items, so choosing one applies it
+                      without closing the menu (you can compare the three). */}
+                  <div className="flex gap-1 p-1">
+                    {PAGE_FONTS.map((entry) => {
+                      const active = font === entry.id
+                      return (
+                        <button
+                          key={entry.id}
+                          type="button"
+                          onClick={() => setPageFont(currentPage.id, entry.id)}
+                          className={cn(
+                            'flex flex-1 flex-col items-center gap-1 rounded-md border py-2 transition-colors',
+                            active
+                              ? 'border-primary bg-accent'
+                              : 'border-transparent hover:bg-accent'
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              'text-xl leading-none',
+                              pageFontClass(entry.id),
+                              active ? 'text-primary' : 'text-foreground'
+                            )}
+                          >
+                            Ag
+                          </span>
+                          <span className="text-xs text-muted-foreground">{entry.label}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <DropdownMenuSeparator />
+
                   <DropdownMenuItem onSelect={() => void createPage(currentPage.id)}>
                     <Plus className="size-4" />
                     Add subpage
@@ -256,8 +293,9 @@ export function PageView({ onRequestDelete }: PageViewProps): React.JSX.Element 
       )}
 
       {/* No top padding: the header strip above already spaces the page off
-          the tab bar, and with a cover the icon deliberately rides up onto it. */}
-      <div className="group/page mx-auto w-full max-w-3xl px-16 pt-0 pb-40">
+          the tab bar, and with a cover the icon deliberately rides up onto it.
+          The chosen font applies to the whole column — title and body. */}
+      <div className={cn('group/page mx-auto w-full max-w-3xl px-16 pt-0 pb-40', pageFontClass(font))}>
         {currentPage.icon && (
           <div
             className={cn(

@@ -12,6 +12,8 @@ export interface Page {
   cover: string | null
   /** Which slice of a tall cover is shown, 0 (top) to 1 (bottom). */
   coverPosition: number
+  /** Body font: `default` (sans), `serif`, or `mono`. */
+  font: string
   /** Tiptap JSON document, serialized. Empty string means "never edited". */
   content: string
   /** Plain-text mirror of `content`, used for search. */
@@ -56,6 +58,7 @@ export interface CreatePageInput {
   icon?: string | null
   cover?: string | null
   coverPosition?: number
+  font?: string
 }
 
 export interface UpdatePageInput {
@@ -64,6 +67,7 @@ export interface UpdatePageInput {
   icon?: string | null
   cover?: string | null
   coverPosition?: number
+  font?: string
   content?: string
   plainText?: string
   favorite?: boolean
