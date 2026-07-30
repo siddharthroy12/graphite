@@ -110,7 +110,7 @@ export function TabBar({ onRequestDelete }: TabBarProps): React.JSX.Element {
           Only the inner row — sized to its actual content — opts out, so the
           tabs and the + button stay clickable and draggable individually. */}
       <div className="app-drag flex min-w-0 flex-1 items-center gap-1">
-        <div className="app-no-drag flex min-w-0 items-center gap-1 overflow-x-auto">
+        <div className="app-no-drag scrollbar-none flex min-w-0 items-center gap-1 overflow-x-auto">
           {tabs.map((tab, index) => (
             <TabItem
               key={tab.id}

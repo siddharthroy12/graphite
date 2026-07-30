@@ -159,6 +159,18 @@
   .app-no-drag {
     -webkit-app-region: no-drag;
   }
+
+  /* Scrolling still works (wheel, trackpad, drag-to-reorder auto-scroll) —
+     only the visible scrollbar track/thumb is removed. Used for the tab row,
+     which would otherwise show one as the window narrows and tabs overflow. */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* -------------------------------------------------------------------------- */
