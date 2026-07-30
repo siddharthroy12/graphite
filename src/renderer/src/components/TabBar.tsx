@@ -262,14 +262,14 @@ function TabItem({
       className={cn(
         // Full bar height and square corners for every tab — not a smaller
         // pill floating inside the bar — so the active tab's background can
-        // reach the bar's own edges exactly, top and bottom. A border on both
-        // sides (gaps removed on the row that holds these) gives each tab a
-        // visible divider from its neighbours instead of empty space.
-        'group relative flex h-11 max-w-[13rem] min-w-0 flex-none cursor-default items-center gap-1.5 rounded-none border-x pr-1 pl-2 text-sm select-none',
+        // reach the bar's own edges exactly, top and bottom.
+        'group relative flex h-11 max-w-[13rem] min-w-0 flex-none cursor-default items-center gap-1.5 rounded-none pr-1 pl-2 text-sm select-none',
         active
           ? // The page surface's own colour, so it reads as one continuous
-            // surface flowing from the tab into the content below it.
-            'bg-background text-foreground'
+            // surface flowing from the tab into the content below it. Only
+            // the active tab gets side borders — they mark its edges against
+            // the bar, not a divider between every pair of tabs.
+            'border-x bg-background text-foreground'
           : 'text-muted-foreground hover:bg-sidebar-accent/50'
       )}
     >
