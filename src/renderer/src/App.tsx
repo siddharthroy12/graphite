@@ -8,7 +8,6 @@ import { PageView } from './components/PageView'
 import { TabBar } from './components/TabBar'
 import { SearchDialog } from './components/SearchDialog'
 import { SettingsDialog } from './components/SettingsDialog'
-import { DeleteDialog } from './components/DeleteDialog'
 
 export function App(): React.JSX.Element {
   const {
@@ -32,7 +31,6 @@ export function App(): React.JSX.Element {
 
   const [searchOpen, setSearchOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [pendingDelete, setPendingDelete] = useState<PageTreeNode | null>(null)
   const [resizing, setResizing] = useState(false)
 
   /* ---------------------------------------------------------------------- */
@@ -138,10 +136,11 @@ export function App(): React.JSX.Element {
     }
   }, [resizing, setSidebarWidth])
 
+  // Trashing is undoable from the trash popover, so it goes ahead without a
+  // confirmation dialog.
   const handleDelete = useCallback(
-    (id: string) => {
-      setPendingDelete(null)
-      void deletePage(id)
+    (node: PageTreeNode) => {
+      void deletePage(node.id)
     },
     [deletePage]
   )
@@ -165,7 +164,7 @@ export function App(): React.JSX.Element {
             <Sidebar
               onOpenSearch={() => setSearchOpen(true)}
               onOpenSettings={() => setSettingsOpen(true)}
-              onRequestDelete={setPendingDelete}
+              onRequestDelete={handleDelete}
             />
             <div
               role="separator"
@@ -183,18 +182,13 @@ export function App(): React.JSX.Element {
         <main className="flex min-w-0 flex-1 flex-col">
           <TabBar />
           <div className="min-h-0 flex-1">
-            <PageView onRequestDelete={setPendingDelete} />
+            <PageView onRequestDelete={handleDelete} />
           </div>
         </main>
       </div>
 
       <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
-      <DeleteDialog
-        node={pendingDelete}
-        onCancel={() => setPendingDelete(null)}
-        onConfirm={handleDelete}
-      />
     </TooltipProvider>
   )
 }
