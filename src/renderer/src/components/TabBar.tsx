@@ -261,11 +261,11 @@ function TabItem({
       title={title}
       className={cn(
         'group relative flex h-7 max-w-[13rem] min-w-0 flex-none cursor-default items-center gap-1.5 rounded-md pr-1 pl-2 text-sm select-none',
-        // No filled pill: the active tab sits flush on the bar like every
-        // other tab, distinguished only by brighter text — matching a plain,
-        // minimal tab strip rather than a boxed/highlighted one.
+        // The active tab takes the page surface's own colour, so it reads as
+        // one continuous surface flowing from the tab into the content below
+        // it, rather than a separately-coloured pill sitting on the bar.
         active
-          ? 'text-sidebar-foreground'
+          ? 'bg-background text-foreground'
           : 'text-muted-foreground hover:bg-sidebar-accent/50'
       )}
     >
