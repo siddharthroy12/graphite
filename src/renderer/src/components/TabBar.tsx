@@ -261,11 +261,12 @@ function TabItem({
       title={title}
       className={cn(
         'group relative flex h-7 max-w-[13rem] min-w-0 flex-none cursor-default items-center gap-1.5 rounded-md pr-1 pl-2 text-sm select-none',
-        // Same tokens as a selected row in the sidebar tree, so the two
-        // selection states match by construction rather than by hand.
+        // No filled pill: the active tab sits flush on the bar like every
+        // other tab, distinguished only by brighter text — matching a plain,
+        // minimal tab strip rather than a boxed/highlighted one.
         active
-          ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-          : 'text-muted-foreground hover:bg-sidebar-accent/70'
+          ? 'text-sidebar-foreground'
+          : 'text-muted-foreground hover:bg-sidebar-accent/50'
       )}
     >
       {dropSide === 'left' && (
