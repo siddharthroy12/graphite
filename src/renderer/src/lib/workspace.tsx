@@ -72,6 +72,19 @@ const WorkspaceContext = createContext<WorkspaceValue | null>(null)
 
 const SAVE_DEBOUNCE_MS = 600
 
+/**
+ * The sidebar's content needs real room: a depth-2 tree row's icon, chevron,
+ * and hover-revealed buttons alone take ~144px before a single character of
+ * title, and the search row's icon/label/⌘K shortcut can't shrink at all.
+ * Measured via the browser's own `min-content` sizing against this app's
+ * actual default pages, the sidebar wants ~257px before anything would need
+ * to truncate — which is why the minimum matches DEFAULT_SIDEBAR_WIDTH rather
+ * than being independently chosen.
+ */
+export const DEFAULT_SIDEBAR_WIDTH = 260
+const MIN_SIDEBAR_WIDTH = DEFAULT_SIDEBAR_WIDTH
+const MAX_SIDEBAR_WIDTH = 460
+
 interface PendingEdit {
   title?: string
   content?: string
@@ -103,7 +116,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }): React.
   const [theme, setThemeState] = useState<ThemePreference>('system')
   const [systemDark, setSystemDark] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [sidebarWidth, setSidebarWidthState] = useState(260)
+  const [sidebarWidth, setSidebarWidthState] = useState(DEFAULT_SIDEBAR_WIDTH)
 
   const [tabs, setTabs] = useState<Tab[]>([])
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
@@ -234,7 +247,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }): React.
 
       setTree(loadedTree)
       setThemeState(prefs.theme)
-      setSidebarWidthState(prefs.sidebarWidth)
+      // Clamp on load too, so a width saved before the minimum was raised
+      // (or a corrupt/hand-edited value) doesn't restore narrower than the
+      // sidebar's content can actually fit.
+      setSidebarWidthState(
+        Math.max(MIN_SIDEBAR_WIDTH, Math.min(prefs.sidebarWidth, MAX_SIDEBAR_WIDTH))
+      )
       setExpandedIds(new Set(prefs.expandedIds))
 
       // Drop tabs whose page has since been deleted.
@@ -543,7 +561,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }): React.
   }, [])
 
   const setSidebarWidth = useCallback((width: number) => {
-    const clamped = Math.max(200, Math.min(width, 460))
+    const clamped = Math.max(MIN_SIDEBAR_WIDTH, Math.min(width, MAX_SIDEBAR_WIDTH))
     setSidebarWidthState(clamped)
     void window.api.prefs.set({ sidebarWidth: clamped })
   }, [])

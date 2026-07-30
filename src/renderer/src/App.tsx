@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { PageTreeNode } from '@shared/types'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
-import { useWorkspace } from '@/lib/workspace'
+import { DEFAULT_SIDEBAR_WIDTH, useWorkspace } from '@/lib/workspace'
 import { Sidebar } from './components/Sidebar'
 import { PageView } from './components/PageView'
 import { TabBar } from './components/TabBar'
@@ -171,7 +171,7 @@ export function App(): React.JSX.Element {
               role="separator"
               aria-orientation="vertical"
               onMouseDown={() => setResizing(true)}
-              onDoubleClick={() => setSidebarWidth(260)}
+              onDoubleClick={() => setSidebarWidth(DEFAULT_SIDEBAR_WIDTH)}
               className={cn(
                 'absolute inset-y-0 -right-1 w-2 cursor-col-resize',
                 resizing && 'bg-ring/30'
