@@ -7,14 +7,11 @@ import Underline from '@tiptap/extension-underline'
 import Highlight from '@tiptap/extension-highlight'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
-import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
-import { createLowlight, common } from 'lowlight'
+import { CodeBlock, lowlight } from './CodeBlock'
 import { FormattingMenu } from './FormattingMenu'
 import { SlashCommand } from './slash-command'
 import { BlockDragHandle } from './drag-handle'
 import { BlockSelection } from './block-selection'
-
-const lowlight = createLowlight(common)
 
 interface EditorProps {
   /** Changes remount the editor with the new document. */
@@ -58,7 +55,7 @@ export function Editor({
           // nearly invisible against body text.
           dropcursor: { color: '#2f6fa8', width: 4, class: 'graphite-dropcursor' }
         }),
-        CodeBlockLowlight.configure({ lowlight }),
+        CodeBlock.configure({ lowlight }),
         Underline,
         Highlight,
         TaskList,
