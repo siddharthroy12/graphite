@@ -295,104 +295,109 @@ export function PageView({ onRequestDelete }: PageViewProps): React.JSX.Element 
       {/* No top padding: the header strip above already spaces the page off
           the tab bar, and with a cover the icon deliberately rides up onto it.
           The chosen font applies to the whole column — title and body. */}
-      <div className={cn('group/page mx-auto w-full max-w-3xl px-16 pt-0 pb-40', pageFontClass(font))}>
-        {currentPage.icon && (
-          <div
-            className={cn(
-              'mb-2',
-              // Half the icon rides up onto the cover, as in the reference.
-              // `relative` alone is enough to paint it above the banner —
-              // both are in the same stacking context, and it comes later.
-              currentPage.cover && 'relative -mt-8'
-            )}
-          >
-            {trashed ? (
-              <span className="text-6xl leading-none">
-                <PageIcon icon={currentPage.icon} />
-              </span>
-            ) : (
-              <IconPicker
-                value={currentPage.icon}
-                onChange={(icon) => void setPageIcon(currentPage.id, icon)}
-              >
-                <button
-                  type="button"
-                  className="flex items-center gap-2 rounded-md text-left text-6xl leading-none transition-opacity hover:opacity-80"
-                >
+      <div className={cn('mx-auto w-full max-w-3xl px-16 pt-0 pb-40', pageFontClass(font))}>
+        {/* Hover group scoped to the header — the add icon/cover strip only
+            appears while the cursor is over the icon, the strip itself, or
+            the title, not anywhere in the page body. */}
+        <div className="group/title">
+          {currentPage.icon && (
+            <div
+              className={cn(
+                'mb-2',
+                // Half the icon rides up onto the cover, as in the reference.
+                // `relative` alone is enough to paint it above the banner —
+                // both are in the same stacking context, and it comes later.
+                currentPage.cover && 'relative -mt-8'
+              )}
+            >
+              {trashed ? (
+                <span className="text-6xl leading-none">
                   <PageIcon icon={currentPage.icon} />
-                </button>
-              </IconPicker>
-            )}
-          </div>
-        )}
-
-        {/* Only the controls the page is missing, revealed on hover — the same
-            way the icon button behaved before covers existed. Not offered on a
-            trashed page, which can't be edited. Pinned to the default font —
-            these are UI chrome, not page content, so the page's chosen font
-            shouldn't restyle them. */}
-        {!trashed && (!currentPage.icon || !currentPage.cover) && (
-          <div
-            className={cn(
-              'mb-2 flex gap-1 opacity-0 transition-opacity group-hover/page:opacity-100',
-              pageFontClass(DEFAULT_PAGE_FONT),
-              // Nothing is overlapping the cover in this case, so the header
-              // still needs its own breathing room below it.
-              currentPage.cover && !currentPage.icon && 'pt-4'
-            )}
-          >
-            {!currentPage.icon && (
-              <IconPicker
-                value={currentPage.icon}
-                onChange={(icon) => void setPageIcon(currentPage.id, icon)}
-              >
-                <button
-                  type="button"
-                  className="flex items-center gap-2 rounded-md px-2 py-1 text-sm text-muted-foreground transition-colors hover:bg-accent"
+                </span>
+              ) : (
+                <IconPicker
+                  value={currentPage.icon}
+                  onChange={(icon) => void setPageIcon(currentPage.id, icon)}
                 >
-                  <Smile className="size-4" />
-                  Add icon
-                </button>
-              </IconPicker>
-            )}
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 rounded-md text-left text-6xl leading-none transition-opacity hover:opacity-80"
+                  >
+                    <PageIcon icon={currentPage.icon} />
+                  </button>
+                </IconPicker>
+              )}
+            </div>
+          )}
 
-            {!currentPage.cover && (
-              <CoverPicker
-                value={currentPage.cover}
-                onChange={(cover) => void setPageCover(currentPage.id, cover)}
-              >
-                <button
-                  type="button"
-                  className="flex items-center gap-2 rounded-md px-2 py-1 text-sm text-muted-foreground transition-colors hover:bg-accent"
+          {/* Only the controls the page is missing, revealed on hover — the same
+              way the icon button behaved before covers existed. Not offered on a
+              trashed page, which can't be edited. Pinned to the default font —
+              these are UI chrome, not page content, so the page's chosen font
+              shouldn't restyle them. */}
+          {!trashed && (!currentPage.icon || !currentPage.cover) && (
+            <div
+              className={cn(
+                'mb-2 flex gap-1 opacity-0 transition-opacity group-hover/title:opacity-100',
+                pageFontClass(DEFAULT_PAGE_FONT),
+                // Nothing is overlapping the cover in this case, so the header
+                // still needs its own breathing room below it.
+                currentPage.cover && !currentPage.icon && 'pt-4'
+              )}
+            >
+              {!currentPage.icon && (
+                <IconPicker
+                  value={currentPage.icon}
+                  onChange={(icon) => void setPageIcon(currentPage.id, icon)}
                 >
-                  <ImageIcon className="size-4" />
-                  Add cover
-                </button>
-              </CoverPicker>
-            )}
-          </div>
-        )}
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 rounded-md px-2 py-1 text-sm text-muted-foreground transition-colors hover:bg-accent"
+                  >
+                    <Smile className="size-4" />
+                    Add icon
+                  </button>
+                </IconPicker>
+              )}
 
-        <textarea
-          ref={titleRef}
-          value={currentPage.title}
-          rows={1}
-          placeholder="Untitled"
-          spellCheck
-          readOnly={trashed}
-          className="w-full resize-none overflow-hidden bg-transparent text-[2.5rem] leading-tight font-bold tracking-tight outline-none placeholder:text-muted-foreground/40"
-          onChange={(event) => {
-            renamePage(currentPage.id, event.target.value)
-            resizeTitle()
-          }}
-          onKeyDown={(event) => {
-            // Enter and Tab both hand off to the body, never break the title.
-            if (event.key === 'Enter' || (event.key === 'Tab' && !event.shiftKey)) {
-              event.preventDefault()
-              document.querySelector<HTMLElement>('.graphite-editor .tiptap')?.focus()
-            }
-          }}
-        />
+              {!currentPage.cover && (
+                <CoverPicker
+                  value={currentPage.cover}
+                  onChange={(cover) => void setPageCover(currentPage.id, cover)}
+                >
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 rounded-md px-2 py-1 text-sm text-muted-foreground transition-colors hover:bg-accent"
+                  >
+                    <ImageIcon className="size-4" />
+                    Add cover
+                  </button>
+                </CoverPicker>
+              )}
+            </div>
+          )}
+
+          <textarea
+            ref={titleRef}
+            value={currentPage.title}
+            rows={1}
+            placeholder="Untitled"
+            spellCheck
+            readOnly={trashed}
+            className="w-full resize-none overflow-hidden bg-transparent text-[2.5rem] leading-tight font-bold tracking-tight outline-none placeholder:text-muted-foreground/40"
+            onChange={(event) => {
+              renamePage(currentPage.id, event.target.value)
+              resizeTitle()
+            }}
+            onKeyDown={(event) => {
+              // Enter and Tab both hand off to the body, never break the title.
+              if (event.key === 'Enter' || (event.key === 'Tab' && !event.shiftKey)) {
+                event.preventDefault()
+                document.querySelector<HTMLElement>('.graphite-editor .tiptap')?.focus()
+              }
+            }}
+          />
+        </div>
 
         <div className="mt-3">
           <Editor
