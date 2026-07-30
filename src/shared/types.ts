@@ -104,6 +104,8 @@ export interface Preferences {
   iconSkinTone: number
   /** Last colour picked for a lucide icon; `null` means the inherited default. */
   iconColor: string | null
+  /** Whether existing pages have been given subpage blocks for their children. */
+  subpageBlocksMigrated: boolean
 }
 
 /** The surface exposed on `window.api` by the preload script. */

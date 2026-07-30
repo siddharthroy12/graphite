@@ -6,6 +6,7 @@ import {
   CheckSquare,
   ChevronRight,
   Code2,
+  FileText,
   Heading1,
   Heading2,
   Heading3,
@@ -16,6 +17,8 @@ import {
   Type,
   type LucideIcon
 } from 'lucide-react'
+import { SUBPAGE_NODE } from '@shared/subpage-block'
+import { pageIdFor, refreshTree } from './editor-registry'
 import { SlashMenu, type SlashMenuHandle } from './SlashMenu'
 
 export interface SlashItem {
@@ -107,6 +110,27 @@ export const SLASH_ITEMS: SlashItem[] = [
     keywords: ['hr', 'rule', 'line', 'separator'],
     command: ({ editor, range }) =>
       editor.chain().focus().deleteRange(range).setHorizontalRule().run()
+  },
+  {
+    title: 'Page',
+    description: 'Embed a subpage',
+    icon: FileText,
+    keywords: ['subpage', 'child', 'page', 'link'],
+    command: ({ editor, range }) => {
+      // Creates the subpage first so the block has a real page to point at.
+      // Stays on the current page; the sidebar refreshes via the registry.
+      const pageId = pageIdFor(editor)
+      if (!pageId) return
+      void window.api.pages.create({ parentId: pageId }).then((page) => {
+        editor
+          .chain()
+          .focus()
+          .deleteRange(range)
+          .insertContent({ type: SUBPAGE_NODE, attrs: { pageId: page.id } })
+          .run()
+        refreshTree()
+      })
+    }
   },
   {
     title: 'Toggle heading',

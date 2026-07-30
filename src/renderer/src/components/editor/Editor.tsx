@@ -8,6 +8,8 @@ import Highlight from '@tiptap/extension-highlight'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import { CodeBlock, lowlight } from './CodeBlock'
+import { SubpageBlock } from './SubpageBlock'
+import { registerEditor, unregisterEditor } from './editor-registry'
 import { FormattingMenu } from './FormattingMenu'
 import { SlashCommand } from './slash-command'
 import { BlockDragHandle } from './drag-handle'
@@ -56,6 +58,7 @@ export function Editor({
           dropcursor: { color: '#2f6fa8', width: 4, class: 'graphite-dropcursor' }
         }),
         CodeBlock.configure({ lowlight }),
+        SubpageBlock,
         Underline,
         Highlight,
         TaskList,
@@ -113,6 +116,14 @@ export function Editor({
   useEffect(() => {
     editor?.setEditable(editable)
   }, [editor, editable])
+
+  // Registered so tree mutations can reach this document while it's open —
+  // see editor-registry.ts.
+  useEffect(() => {
+    if (!editor) return
+    registerEditor(pageId, editor)
+    return () => unregisterEditor(pageId, editor)
+  }, [editor, pageId])
 
   // Links are informational while editing; a click should reach the OS browser.
   useEffect(() => {

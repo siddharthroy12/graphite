@@ -13,6 +13,7 @@ import type {
   TrashedPage,
   UpdatePageInput
 } from '../shared/types'
+import { appendSubpageBlock, remapSubpageBlocks } from '../shared/subpage-block'
 
 /** Shape of a row in the `pages` table. */
 interface PageRow {
@@ -43,7 +44,8 @@ const DEFAULT_PREFERENCES: Preferences = {
   activeTabId: null,
   recentIcons: [],
   iconSkinTone: 0,
-  iconColor: null
+  iconColor: null,
+  subpageBlocksMigrated: false
 }
 
 let db: Database.Database
@@ -152,6 +154,38 @@ export function initDatabase(): void {
 
   migrate()
   seedIfEmpty()
+  migrateSubpageBlocks()
+}
+
+/**
+ * One-time content migration: pages created before subpage blocks existed get
+ * a block for each of their children, appended to the body in sidebar order.
+ * Guarded by a preference so it runs exactly once — afterwards, a block the
+ * user deletes from a body stays deleted.
+ */
+function migrateSubpageBlocks(): void {
+  if (getPreferences().subpageBlocksMigrated) return
+
+  const parents = db
+    .prepare<[], { id: string; content: string }>(
+      'SELECT id, content FROM pages WHERE deleted_at IS NULL'
+    )
+    .all()
+  const childrenOf = db.prepare<[string], { id: string }>(
+    'SELECT id FROM pages WHERE parent_id IS ? AND deleted_at IS NULL ORDER BY position'
+  )
+
+  db.transaction(() => {
+    for (const parent of parents) {
+      let content = parent.content
+      for (const child of childrenOf.all(parent.id)) {
+        content = appendSubpageBlock(content, child.id)
+      }
+      if (content !== parent.content) updatePage({ id: parent.id, content })
+    }
+  })()
+
+  setPreferences({ subpageBlocksMigrated: true })
 }
 
 /**
@@ -435,6 +469,9 @@ export function duplicatePage(id: string): Page {
       plainText: source.plainText
     })
 
+    // Old id → copy id, so embedded subpage blocks can be retargeted below.
+    const idMap = new Map<string, string>([[source.id, rootCopy.id]])
+
     // Breadth-first copy so a parent's new id always exists before its children.
     const queue: Array<{ sourceId: string; copyId: string }> = [
       { sourceId: source.id, copyId: rootCopy.id }
@@ -462,8 +499,18 @@ export function duplicatePage(id: string): Page {
           content: child.content,
           plainText: child.plain_text
         })
+        idMap.set(child.id, childCopy.id)
         queue.push({ sourceId: child.id, copyId: childCopy.id })
       }
+    }
+
+    // The copies' bodies were copied verbatim, so their subpage blocks still
+    // point at the original children. Retarget them at the new copies — only
+    // now that every id in the map exists.
+    for (const copy of idMap.values()) {
+      const page = getPage(copy)!
+      const content = remapSubpageBlocks(page.content, idMap)
+      if (content !== page.content) updatePage({ id: copy, content })
     }
 
     return rootCopy.id

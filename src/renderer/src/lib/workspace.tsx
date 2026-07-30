@@ -9,6 +9,12 @@ import {
   type ReactNode
 } from 'react'
 import type { MovePageInput, Page, PageTreeNode, ThemePreference } from '@shared/types'
+import {
+  appendSubpageBlock,
+  removeSubpageBlock,
+  SUBPAGE_NODE
+} from '@shared/subpage-block'
+import { editorsFor, setTreeRefresher } from '@/components/editor/editor-registry'
 import { ancestorIds, findNode } from './tree'
 
 export type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error'
@@ -139,6 +145,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }): React.
   const refreshTree = useCallback(async () => {
     setTree(await window.api.pages.tree())
   }, [])
+
+  // Lets editor-side code (the slash menu's Page item) refresh the sidebar
+  // without importing this module — that would be a circular import.
+  useEffect(() => {
+    setTreeRefresher(refreshTree)
+    return () => setTreeRefresher(null)
+  }, [refreshTree])
 
   /* ---------------------------------------------------------------------- */
   /* Saving                                                                 */
@@ -406,6 +419,64 @@ export function WorkspaceProvider({ children }: { children: ReactNode }): React.
     activeTab !== null && activeTab.historyIndex < activeTab.history.length - 1
 
   /* ---------------------------------------------------------------------- */
+  /* Subpage blocks                                                           */
+  /* ---------------------------------------------------------------------- */
+
+  // Subpages are embedded in the parent's body as `subpage` blocks. When the
+  // parent is open, its live editors get the change as a transaction (their
+  // normal onChange persists it); otherwise the stored content is rewritten
+  // directly. Pending edits are flushed first so a queued save can't later
+  // clobber the structural change with stale content.
+  const insertSubpageBlock = useCallback(async (parentId: string, subpageId: string) => {
+    await flushRef.current()
+    const live = editorsFor(parentId)
+    if (live.length > 0) {
+      for (const editor of live) {
+        let exists = false
+        editor.state.doc.descendants((node) => {
+          if (node.type.name === SUBPAGE_NODE && node.attrs.pageId === subpageId) exists = true
+          return !exists
+        })
+        if (exists) continue
+        editor.commands.insertContentAt(editor.state.doc.content.size, {
+          type: SUBPAGE_NODE,
+          attrs: { pageId: subpageId }
+        })
+      }
+      return
+    }
+    const parent = await window.api.pages.get(parentId)
+    if (!parent) return
+    const content = appendSubpageBlock(parent.content, subpageId)
+    if (content !== parent.content) await window.api.pages.update({ id: parentId, content })
+  }, [])
+
+  const removeSubpageBlockFrom = useCallback(async (parentId: string, subpageId: string) => {
+    await flushRef.current()
+    const live = editorsFor(parentId)
+    if (live.length > 0) {
+      for (const editor of live) {
+        // Collect first, then delete back-to-front so positions stay valid.
+        const matches: Array<{ from: number; to: number }> = []
+        editor.state.doc.descendants((node, pos) => {
+          if (node.type.name === SUBPAGE_NODE && node.attrs.pageId === subpageId) {
+            matches.push({ from: pos, to: pos + node.nodeSize })
+          }
+          return true
+        })
+        for (const range of matches.reverse()) {
+          editor.commands.deleteRange(range)
+        }
+      }
+      return
+    }
+    const parent = await window.api.pages.get(parentId)
+    if (!parent) return
+    const content = removeSubpageBlock(parent.content, subpageId)
+    if (content !== parent.content) await window.api.pages.update({ id: parentId, content })
+  }, [])
+
+  /* ---------------------------------------------------------------------- */
   /* Page mutations                                                         */
   /* ---------------------------------------------------------------------- */
 
@@ -416,7 +487,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }): React.
         const page = await window.api.pages.create({ parentId })
         await refreshTree()
 
-        if (parentId) setExpandedIds((prev) => new Set(prev).add(parentId))
+        if (parentId) {
+          setExpandedIds((prev) => new Set(prev).add(parentId))
+          // Embed the new subpage in its parent's body, then persist right
+          // away — navigating below unmounts the parent's editor, which
+          // would otherwise leave the insert sitting in the save queue.
+          await insertSubpageBlock(parentId, page.id)
+          await flushRef.current()
+        }
 
         setTabs((prev) =>
           prev.map((tab) => (tab.id === activeTabId ? navigateTab(tab, page.id) : tab))
@@ -429,7 +507,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }): React.
         return null
       }
     },
-    [activeTabId, refreshTree]
+    [activeTabId, refreshTree, insertSubpageBlock]
   )
 
   // Drops a set of removed page ids out of every tab: a tab sitting on one of
@@ -462,11 +540,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }): React.
   const deletePage = useCallback(
     async (id: string) => {
       pending.current.delete(id)
+      // The block lives in the (still living) parent's document; grab the
+      // parent before trashing, since the page won't be in the tree after.
+      const doomed = await window.api.pages.get(id)
       const trashed = new Set(await window.api.pages.trash(id))
       setTree(await window.api.pages.tree())
       dropTabsInto(trashed)
+      if (doomed?.parentId) await removeSubpageBlockFrom(doomed.parentId, id)
     },
-    [dropTabsInto]
+    [dropTabsInto, removeSubpageBlockFrom]
   )
 
   // Restoring a trashed page. If it's currently open (viewed via the trash
@@ -477,8 +559,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }): React.
       const restored = await window.api.pages.restore(id)
       await refreshTree()
       if (restored) setCurrentPage((prev) => (prev && prev.id === id ? restored : prev))
+      // Trashing removed the block from the parent's body; put it back.
+      if (restored?.parentId) await insertSubpageBlock(restored.parentId, id)
     },
-    [refreshTree]
+    [refreshTree, insertSubpageBlock]
   )
 
   const permanentlyDeletePage = useCallback(
@@ -570,17 +654,25 @@ export function WorkspaceProvider({ children }: { children: ReactNode }): React.
 
   const movePage = useCallback(
     async (input: MovePageInput) => {
+      // Capture the old parent before the move; its document holds the block.
+      const oldParentId = findNode(tree, input.id)?.parentId ?? null
       try {
         await window.api.pages.move(input)
         await refreshTree()
         if (input.parentId) {
           setExpandedIds((prev) => new Set(prev).add(input.parentId!))
         }
+        // A reparent moves the block between documents; a reorder within the
+        // same parent leaves the body alone — block order there is the user's.
+        if (input.parentId !== oldParentId) {
+          if (oldParentId) await removeSubpageBlockFrom(oldParentId, input.id)
+          if (input.parentId) await insertSubpageBlock(input.parentId, input.id)
+        }
       } catch (error) {
         console.error('Failed to move page', error)
       }
     },
-    [refreshTree]
+    [refreshTree, tree, insertSubpageBlock, removeSubpageBlockFrom]
   )
 
   const updateContent = useCallback(
