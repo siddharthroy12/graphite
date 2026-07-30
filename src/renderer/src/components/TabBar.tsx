@@ -263,13 +263,21 @@ function TabItem({
         // Full bar height and square corners for every tab — not a smaller
         // pill floating inside the bar — so the active tab's background can
         // reach the bar's own edges exactly, top and bottom.
-        'group relative flex h-11 max-w-[13rem] min-w-0 flex-none cursor-default items-center gap-1.5 rounded-none pr-1 pl-2 text-sm select-none',
+        //
+        // `border-x` is unconditional (transparent when inactive) rather than
+        // only present on the active tab: a border adds to a fit-content
+        // element's own rendered width, so a tab that gains or loses it
+        // changes size — which shifts its own icon/label inward or outward,
+        // and shoves every tab to its right sideways. Keeping the border's
+        // *width* constant at all times and only ever toggling its *colour*
+        // means the box's dimensions never change with active state.
+        'group relative flex h-11 max-w-[13rem] min-w-0 flex-none cursor-default items-center gap-1.5 rounded-none border-x border-transparent pr-1 pl-2 text-sm select-none',
         active
           ? // The page surface's own colour, so it reads as one continuous
             // surface flowing from the tab into the content below it. Only
-            // the active tab gets side borders — they mark its edges against
-            // the bar, not a divider between every pair of tabs.
-            'border-x bg-background text-foreground'
+            // the active tab's border is actually visible — it marks its
+            // edges against the bar, not a divider between every tab pair.
+            'border-border bg-background text-foreground'
           : 'text-muted-foreground hover:bg-sidebar-accent/50'
       )}
     >
@@ -278,9 +286,11 @@ function TabItem({
         // without moving the tab's own box (and so its text/icon) the way
         // shifting the whole element with a relative offset did — that
         // visibly nudged the label down by a pixel every time this tab
-        // became active. Centered on the boundary via translate-y so a 2px
-        // strip safely covers a 1px border regardless of sub-pixel rounding.
-        <span className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 translate-y-1/2 bg-background" />
+        // became active. Generously tall (4px) and centred on the boundary
+        // via translate-y, so it fully covers a 1px border regardless of the
+        // display's device pixel ratio rather than relying on an exact
+        // pixel-for-pixel guess that can leave a sliver showing.
+        <span className="pointer-events-none absolute inset-x-0 bottom-0 h-1 translate-y-1/2 bg-background" />
       )}
 
       {dropSide === 'left' && (
