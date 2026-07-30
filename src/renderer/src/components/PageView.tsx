@@ -328,11 +328,14 @@ export function PageView({ onRequestDelete }: PageViewProps): React.JSX.Element 
 
         {/* Only the controls the page is missing, revealed on hover — the same
             way the icon button behaved before covers existed. Not offered on a
-            trashed page, which can't be edited. */}
+            trashed page, which can't be edited. Pinned to the default font —
+            these are UI chrome, not page content, so the page's chosen font
+            shouldn't restyle them. */}
         {!trashed && (!currentPage.icon || !currentPage.cover) && (
           <div
             className={cn(
               'mb-2 flex gap-1 opacity-0 transition-opacity group-hover/page:opacity-100',
+              pageFontClass(DEFAULT_PAGE_FONT),
               // Nothing is overlapping the cover in this case, so the header
               // still needs its own breathing room below it.
               currentPage.cover && !currentPage.icon && 'pt-4'
