@@ -260,12 +260,19 @@ function TabItem({
       }}
       title={title}
       className={cn(
-        'group relative flex h-7 max-w-[13rem] min-w-0 flex-none cursor-default items-center gap-1.5 rounded-md pr-1 pl-2 text-sm select-none',
-        // The active tab takes the page surface's own colour, so it reads as
-        // one continuous surface flowing from the tab into the content below
-        // it, rather than a separately-coloured pill sitting on the bar.
+        // Full bar height and square corners for every tab — not a smaller
+        // pill floating inside the bar — so the active tab's background can
+        // reach the bar's own edges exactly, top and bottom.
+        'group relative flex h-11 max-w-[13rem] min-w-0 flex-none cursor-default items-center gap-1.5 rounded-none pr-1 pl-2 text-sm select-none',
         active
-          ? 'bg-background text-foreground'
+          ? // The page surface's own colour, so it reads as one continuous
+            // surface flowing from the tab into the content below it.
+            // `-bottom-px` (on the `relative` already set above) nudges the
+            // rendered box down by one pixel to actually overlap the tab
+            // bar's own border-b — a negative margin-bottom does *not* do
+            // this: margin-bottom only changes how much space is reserved
+            // after an element, it never moves the element's own box.
+            '-bottom-px bg-background text-foreground'
           : 'text-muted-foreground hover:bg-sidebar-accent/50'
       )}
     >
