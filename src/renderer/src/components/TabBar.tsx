@@ -65,12 +65,24 @@ export function TabBar({ onRequestDelete }: TabBarProps): React.JSX.Element {
   return (
     <div
       className={cn(
-        'app-drag flex h-11 flex-none items-center gap-1 border-b bg-sidebar pr-2 pl-2',
+        // No border-b here: it used to live on the whole bar, but a tab
+        // nested in the horizontally-scrolling row below can never cover an
+        // ancestor's border to open a gap under itself — overflow-x-auto
+        // forces overflow-y to compute as auto too (unavoidable per the CSS
+        // overflow spec), which clips anything a child tries to extend past
+        // its own edge to reach the ancestor's border. Each bar segment
+        // (this group, the tabs, the + button, the group on the right) draws
+        // its own border-b instead, so the active tab can simply not draw
+        // one rather than needing to hide someone else's.
+        'app-drag flex h-11 flex-none items-center gap-1 bg-sidebar pr-2 pl-2',
         // Clear the traffic lights when the sidebar isn't there to hold them.
         isMac && !sidebarOpen && 'pl-[78px]'
       )}
     >
-      <div className="app-no-drag flex flex-none items-center gap-0.5">
+      {/* h-11 (not just centred within the h-11 bar) so this group's own
+          border-b lands at the same y as the tabs' — otherwise the line
+          would draw partway up the bar instead of at its bottom edge. */}
+      <div className="app-no-drag flex h-11 flex-none items-center gap-0.5 border-b">
         <Button
           variant="ghost"
           size="icon"
@@ -109,7 +121,7 @@ export function TabBar({ onRequestDelete }: TabBarProps): React.JSX.Element {
           that should behave like the rest of the tab bar, not like a tab.
           Only the inner row — sized to its actual content — opts out, so the
           tabs and the + button stay clickable and draggable individually. */}
-      <div className="app-drag flex min-w-0 flex-1 items-center">
+      <div className="app-drag flex h-11 min-w-0 flex-1 items-center border-b">
         <div className="app-no-drag scrollbar-none flex min-w-0 items-center overflow-x-auto">
           {tabs.map((tab, index) => (
             <TabItem
@@ -138,7 +150,7 @@ export function TabBar({ onRequestDelete }: TabBarProps): React.JSX.Element {
         </div>
       </div>
 
-      <div className="app-no-drag flex flex-none items-center gap-1">
+      <div className="app-no-drag flex h-11 flex-none items-center gap-1 border-b">
         <span
           className={cn(
             'text-xs whitespace-nowrap',
@@ -277,21 +289,21 @@ function TabItem({
             // surface flowing from the tab into the content below it. Only
             // the active tab's border is actually visible — it marks its
             // edges against the bar, not a divider between every tab pair.
+            //
+            // No relative/absolute offset here, even though the tab's own
+            // edge can land a sub-pixel short of the border in testing
+            // (43.5px vs a 44px line): the *tab* is still a child of the
+            // horizontally-scrolling row, which forces overflow-y to auto
+            // right along with overflow-x (unavoidable per the CSS overflow
+            // spec) — any offset that pushes this element past the row's own
+            // rendered height gets clipped, confirmed by measurement, the
+            // same failure mode as the original covering span. It's the
+            // border's new home (the row's parent) that isn't clipped, not
+            // this element.
             'border-border bg-background text-foreground'
           : 'text-muted-foreground hover:bg-sidebar-accent/50'
       )}
     >
-      {active && (
-        // Covers the tab bar's own border-b for exactly this tab's width,
-        // without moving the tab's own box (and so its text/icon) the way
-        // shifting the whole element with a relative offset did — that
-        // visibly nudged the label down by a pixel every time this tab
-        // became active. Generously tall (4px) and centred on the boundary
-        // via translate-y, so it fully covers a 1px border regardless of the
-        // display's device pixel ratio rather than relying on an exact
-        // pixel-for-pixel guess that can leave a sliver showing.
-        <span className="pointer-events-none absolute inset-x-0 bottom-0 h-1 translate-y-1/2 bg-background" />
-      )}
 
       {dropSide === 'left' && (
         <span className="pointer-events-none absolute inset-y-1 -left-0.5 w-0.5 rounded-full bg-ring" />
