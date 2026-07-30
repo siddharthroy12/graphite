@@ -109,8 +109,8 @@ export function TabBar({ onRequestDelete }: TabBarProps): React.JSX.Element {
           that should behave like the rest of the tab bar, not like a tab.
           Only the inner row — sized to its actual content — opts out, so the
           tabs and the + button stay clickable and draggable individually. */}
-      <div className="app-drag flex min-w-0 flex-1 items-center gap-1">
-        <div className="app-no-drag scrollbar-none flex min-w-0 items-center gap-1 overflow-x-auto">
+      <div className="app-drag flex min-w-0 flex-1 items-center">
+        <div className="app-no-drag scrollbar-none flex min-w-0 items-center overflow-x-auto">
           {tabs.map((tab, index) => (
             <TabItem
               key={tab.id}
@@ -128,7 +128,7 @@ export function TabBar({ onRequestDelete }: TabBarProps): React.JSX.Element {
           <Button
             variant="ghost"
             size="icon"
-            className="size-7 flex-none"
+            className="ml-1 size-7 flex-none"
             title="New tab (⌘T)"
             aria-label="New tab"
             onClick={newTab}
@@ -262,20 +262,27 @@ function TabItem({
       className={cn(
         // Full bar height and square corners for every tab — not a smaller
         // pill floating inside the bar — so the active tab's background can
-        // reach the bar's own edges exactly, top and bottom.
-        'group relative flex h-11 max-w-[13rem] min-w-0 flex-none cursor-default items-center gap-1.5 rounded-none pr-1 pl-2 text-sm select-none',
+        // reach the bar's own edges exactly, top and bottom. A border on both
+        // sides (gaps removed on the row that holds these) gives each tab a
+        // visible divider from its neighbours instead of empty space.
+        'group relative flex h-11 max-w-[13rem] min-w-0 flex-none cursor-default items-center gap-1.5 rounded-none border-x pr-1 pl-2 text-sm select-none',
         active
           ? // The page surface's own colour, so it reads as one continuous
             // surface flowing from the tab into the content below it.
-            // `-bottom-px` (on the `relative` already set above) nudges the
-            // rendered box down by one pixel to actually overlap the tab
-            // bar's own border-b — a negative margin-bottom does *not* do
-            // this: margin-bottom only changes how much space is reserved
-            // after an element, it never moves the element's own box.
-            '-bottom-px bg-background text-foreground'
+            'bg-background text-foreground'
           : 'text-muted-foreground hover:bg-sidebar-accent/50'
       )}
     >
+      {active && (
+        // Covers the tab bar's own border-b for exactly this tab's width,
+        // without moving the tab's own box (and so its text/icon) the way
+        // shifting the whole element with a relative offset did — that
+        // visibly nudged the label down by a pixel every time this tab
+        // became active. Centered on the boundary via translate-y so a 2px
+        // strip safely covers a 1px border regardless of sub-pixel rounding.
+        <span className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 translate-y-1/2 bg-background" />
+      )}
+
       {dropSide === 'left' && (
         <span className="pointer-events-none absolute inset-y-1 -left-0.5 w-0.5 rounded-full bg-ring" />
       )}
