@@ -18,9 +18,16 @@ import { getUsedImages } from './db'
  * Uploaded page images live beside the database, in the app's own data
  * directory. The folder is named for icons because they came first; covers
  * share it, since both are user-supplied images served the same way.
+ *
+ * Dev uses its own folder: garbage collection deletes files the open
+ * database doesn't reference, so sharing one folder would let the dev
+ * database collect the packaged app's images (and vice versa).
  */
 function iconsDirectory(): string {
-  const directory = join(app.getPath('userData'), 'page-icons')
+  const directory = join(
+    app.getPath('userData'),
+    app.isPackaged ? 'page-icons' : 'page-icons-dev'
+  )
   mkdirSync(directory, { recursive: true })
   return directory
 }

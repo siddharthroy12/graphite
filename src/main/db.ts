@@ -91,7 +91,9 @@ const SUMMARY_COLUMNS =
   'id, parent_id, title, icon, cover, cover_position, font, favorite, position, created_at, updated_at, deleted_at'
 
 export function initDatabase(): void {
-  dbPath = join(app.getPath('userData'), 'graphite.db')
+  // Dev runs against a separate database so experimenting never touches the
+  // data the packaged app uses. Same split for uploaded images — see icons.ts.
+  dbPath = join(app.getPath('userData'), app.isPackaged ? 'graphite.db' : 'graphite-dev.db')
   db = new Database(dbPath)
 
   db.pragma('journal_mode = WAL')
