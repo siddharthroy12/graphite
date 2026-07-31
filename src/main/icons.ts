@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { app, net, protocol } from 'electron'
+import { net, protocol } from 'electron'
 import {
   ICON_SCHEME,
   ICON_UPLOAD_MAX_BYTES,
@@ -12,6 +12,7 @@ import {
   parseIcon
 } from '../shared/icon'
 import { COVER_UPLOAD_MAX_BYTES, parseCover } from '../shared/cover'
+import { getDataDir, iconsDirName } from './data-dir'
 import { getUsedImages } from './db'
 
 /**
@@ -24,10 +25,7 @@ import { getUsedImages } from './db'
  * database collect the packaged app's images (and vice versa).
  */
 function iconsDirectory(): string {
-  const directory = join(
-    app.getPath('userData'),
-    app.isPackaged ? 'page-icons' : 'page-icons-dev'
-  )
+  const directory = join(getDataDir(), iconsDirName())
   mkdirSync(directory, { recursive: true })
   return directory
 }

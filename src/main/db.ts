@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
-import { app } from 'electron'
 import Database from 'better-sqlite3'
+import { dbFileName, getDataDir } from './data-dir'
 import type {
   CreatePageInput,
   MovePageInput,
@@ -93,7 +93,7 @@ const SUMMARY_COLUMNS =
 export function initDatabase(): void {
   // Dev runs against a separate database so experimenting never touches the
   // data the packaged app uses. Same split for uploaded images — see icons.ts.
-  dbPath = join(app.getPath('userData'), app.isPackaged ? 'graphite.db' : 'graphite-dev.db')
+  dbPath = join(getDataDir(), dbFileName())
   db = new Database(dbPath)
 
   db.pragma('journal_mode = WAL')

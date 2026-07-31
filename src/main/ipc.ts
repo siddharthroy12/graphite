@@ -1,11 +1,13 @@
-import { ipcMain, shell } from 'electron'
+import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import type {
   CreatePageInput,
+  DataLocation,
   MovePageInput,
   Preferences,
   UpdatePageInput
 } from '../shared/types'
 import {
+  closeDatabase,
   createPage,
   duplicatePage,
   emptyTrash,
@@ -16,6 +18,7 @@ import {
   getPreferences,
   getRecentPages,
   getTrash,
+  initDatabase,
   movePage,
   permanentlyDeletePage,
   restorePage,
@@ -24,7 +27,30 @@ import {
   trashPage,
   updatePage
 } from './db'
-import { saveImageFile, type SaveImageInput } from './icons'
+import { getDataDir, isDefaultDataDir, relocateDataDir, resetDataDir } from './data-dir'
+import { pruneImageFiles, saveImageFile, type SaveImageInput } from './icons'
+
+function dataLocation(): DataLocation {
+  return { dir: getDataDir(), dbPath: getDatabasePath(), isDefault: isDefaultDataDir() }
+}
+
+/**
+ * Applies a data-directory change: close the database, move (or adopt) the
+ * files, then reopen. On failure the database is reopened where it already
+ * was, so the app is never left without one; the error propagates to the
+ * renderer. `pruneImageFiles` runs after adopting an existing workspace, in
+ * case it carries images no page references.
+ */
+function switchDataDir(change: () => void): DataLocation {
+  closeDatabase()
+  try {
+    change()
+  } finally {
+    initDatabase()
+  }
+  pruneImageFiles()
+  return dataLocation()
+}
 
 /**
  * Wraps a handler so a thrown database error travels to the renderer as a
@@ -67,8 +93,29 @@ export function registerIpcHandlers(): void {
   handle('prefs:set', (patch: Partial<Preferences>) => setPreferences(patch))
 
   handle('system:dataPath', () => getDatabasePath())
+  handle('system:dataInfo', () => dataLocation())
   handle('system:revealData', () => {
     shell.showItemInFolder(getDatabasePath())
+  })
+
+  handle('system:chooseDataLocation', async () => {
+    const window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+    const result = await dialog.showOpenDialog(window, {
+      title: 'Choose where Graphite stores its data',
+      buttonLabel: 'Use this folder',
+      properties: ['openDirectory', 'createDirectory']
+    })
+
+    const target = result.filePaths[0]
+    if (result.canceled || !target) return null
+    if (target === getDataDir()) return dataLocation()
+
+    return switchDataDir(() => relocateDataDir(target))
+  })
+
+  handle('system:resetDataLocation', () => {
+    if (isDefaultDataDir()) return dataLocation()
+    return switchDataDir(() => resetDataDir())
   })
   handle('system:openExternal', async (url: string) => {
     // Only ever hand http(s) links to the OS browser.

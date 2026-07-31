@@ -84,6 +84,16 @@ export interface MovePageInput {
 
 export type ThemePreference = 'light' | 'dark' | 'system'
 
+/** Where the workspace (database + uploaded images) lives on disk. */
+export interface DataLocation {
+  /** The directory holding everything. */
+  dir: string
+  /** Absolute path of the database file inside it, for display. */
+  dbPath: string
+  /** Whether `dir` is the app's default location. */
+  isDefault: boolean
+}
+
 /** A tab as stored on disk. Navigation history is intentionally not persisted. */
 export interface PersistedTab {
   id: string
@@ -141,6 +151,12 @@ export interface GraphiteApi {
   system: {
     /** Absolute path of the on-disk database, shown in settings. */
     dataPath(): Promise<string>
+    /** Where the workspace is stored, for the settings panel. */
+    dataInfo(): Promise<DataLocation>
+    /** Opens a folder picker and relocates the workspace; `null` if cancelled. */
+    chooseDataLocation(): Promise<DataLocation | null>
+    /** Moves the workspace back to the default location. */
+    resetDataLocation(): Promise<DataLocation>
     revealData(): Promise<void>
     openExternal(url: string): Promise<void>
     platform: NodeJS.Platform
