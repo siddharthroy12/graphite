@@ -436,7 +436,11 @@ body.is-selecting-blocks * {
 }
 
 .graphite-editor .tiptap p {
-  @apply leading-7;
+  line-height: 24px;
+}
+
+.graphite-editor .tiptap li p {
+  line-height: 1.2;
 }
 
 /* Top-level paragraphs get the same 5px block padding straight on the `<p>`,
@@ -517,7 +521,7 @@ body.is-selecting-blocks * {
 }
 
 .graphite-editor .tiptap blockquote {
-  @apply my-2 border-l-[3px] pl-4 italic;
+  @apply border-l-[3px] pl-4 italic;
   border-color: color-mix(in oklab, var(--foreground) 30%, transparent);
 }
 
@@ -577,7 +581,7 @@ body.is-selecting-blocks * {
    same idea as a paragraph's own line-height. */
 .graphite-editor .tiptap hr {
   position: relative;
-  height: 1.75rem;
+  height: 1px;
   border: none;
   background: none;
   padding: 0;
@@ -624,7 +628,7 @@ body.is-selecting-blocks * {
 }
 
 .graphite-editor .tiptap ul[data-type="taskList"] li > label {
-  @apply mt-[7px] flex-none select-none;
+  @apply mt-[2px] select-none flex;
 }
 
 .graphite-editor .tiptap ul[data-type="taskList"] li > div {
@@ -632,7 +636,7 @@ body.is-selecting-blocks * {
 }
 
 .graphite-editor .tiptap ul[data-type="taskList"] input[type="checkbox"] {
-  @apply size-4 cursor-pointer rounded border-input accent-current;
+  @apply size-4 mt-[1px] cursor-pointer rounded border-input accent-current;
 }
 
 .graphite-editor
