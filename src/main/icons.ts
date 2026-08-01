@@ -12,6 +12,7 @@ import {
   parseIcon
 } from '../shared/icon'
 import { COVER_UPLOAD_MAX_BYTES, parseCover } from '../shared/cover'
+import { MEDIA_UPLOAD_MAX_BYTES } from '../shared/media'
 import { getDataDir, iconsDirName } from './data-dir'
 import { getUsedImages } from './db'
 
@@ -79,6 +80,40 @@ export function saveImageFile({ data, type, purpose }: SaveImageInput): string {
   }
 
   const fileName = `${randomUUID()}.${extension}`
+  writeFileSync(join(iconsDirectory(), fileName), bytes)
+  return fileIconValue(fileName)
+}
+
+export interface SaveMediaInput {
+  /** Raw file bytes. */
+  data: Uint8Array
+  /** MIME type, used only as a fallback for the stored extension. */
+  type: string
+  /** Original file name; its extension is preserved so the file stays openable. */
+  name: string
+}
+
+/** Sanitises an extension to the `[A-Za-z0-9]+` the file-name validator allows. */
+function extensionFor(name: string, mimeType: string): string {
+  const fromName = name.includes('.') ? name.split('.').pop()! : ''
+  const fromMime = mimeType.includes('/') ? mimeType.split('/').pop()! : ''
+  const candidate = (fromName || fromMime).toLowerCase().replace(/[^a-z0-9]/g, '')
+  return candidate.length > 0 && candidate.length <= 12 ? candidate : 'bin'
+}
+
+/**
+ * Writes an uploaded media/file block's bytes and returns the `file:` value
+ * naming it. Unlike icons and covers this accepts any type — the extension is
+ * kept so the file stays openable — but the same size guard applies.
+ */
+export function saveMediaFile({ data, type, name }: SaveMediaInput): string {
+  const bytes = Buffer.from(data)
+  if (bytes.byteLength === 0) throw new Error('File is empty')
+  if (bytes.byteLength > MEDIA_UPLOAD_MAX_BYTES) {
+    throw new Error(`File is larger than ${MEDIA_UPLOAD_MAX_BYTES / 1024 / 1024} MB`)
+  }
+
+  const fileName = `${randomUUID()}.${extensionFor(name, type)}`
   writeFileSync(join(iconsDirectory(), fileName), bytes)
   return fileIconValue(fileName)
 }

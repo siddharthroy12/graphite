@@ -67,6 +67,46 @@ export function leafBlockRanges(doc: ProseMirrorNode): BlockRange[] {
 }
 
 /**
+ * A TextSelection covering whole blocks from `first` through `last`.
+ *
+ * `TextSelection.between` snaps each endpoint to the nearest text position —
+ * exactly what lands the selection inside a list item's paragraph rather than
+ * at the bare list-item boundary, and why it's used for the text-block ends.
+ * But that same snapping steps *out* of an atom block (an image/video/file,
+ * which has no text inside), so a marquee that begins or ends on one would
+ * drop it from the selection entirely — the block would look tinted (the
+ * decoration follows the selection) yet not actually be selected, and delete
+ * or copy would skip it. So the ends are resolved separately: a text block
+ * contributes its snapped inner position, an atom contributes its own outer
+ * boundary — the position before it for the start, after it for the end — so
+ * the atom's whole range sits inside the final selection. The result is still
+ * a plain TextSelection, so delete/copy/paste need no special-casing.
+ */
+function blockSpanSelection(
+  doc: ProseMirrorNode,
+  first: BlockRange,
+  last: BlockRange
+): TextSelection {
+  const firstAtom = doc.nodeAt(first.start)?.isAtom ?? false
+  const lastAtom = doc.nodeAt(last.start)?.isAtom ?? false
+
+  // One `between` spanning both ends (not two collapsed ones, which can each
+  // snap into a neighbouring block); its snapped ends are used only for the
+  // text-block sides. Skipped entirely when both ends are atoms.
+  const snapped =
+    firstAtom && lastAtom
+      ? null
+      : TextSelection.between(
+          doc.resolve(firstAtom ? first.start : first.start + 1),
+          doc.resolve(lastAtom ? last.end : last.end - 1)
+        )
+
+  const from = firstAtom ? first.start : snapped!.from
+  const to = lastAtom ? last.end : snapped!.to
+  return TextSelection.create(doc, from, to)
+}
+
+/**
  * True only when the current selection was produced by the marquee gesture —
  * never for an ordinary text selection, however many blocks it happens to
  * span. Dragging from inside text across a block boundary is still just a
@@ -213,15 +253,7 @@ export const BlockSelection = Extension.create({
             })
             if (rows.length === 0) return
 
-            const first = rows[0]
-            const last = rows[rows.length - 1]
-
-            // `between` snaps to valid text positions, so a list or other
-            // non-textblock at either end doesn't produce an invalid selection.
-            const selection = TextSelection.between(
-              doc.resolve(first.start + 1),
-              doc.resolve(last.end - 1)
-            )
+            const selection = blockSpanSelection(doc, rows[0], rows[rows.length - 1])
 
             if (!selection.eq(view.state.selection)) {
               view.dispatch(

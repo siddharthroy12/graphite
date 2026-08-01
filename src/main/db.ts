@@ -224,8 +224,17 @@ export function closeDatabase(): void {
 }
 
 /** Every icon and cover value in use — how uploaded image files are garbage-collected. */
+/** Matches a `file:<name>` upload reference wherever it appears (columns or content). */
+const FILE_REF_PATTERN = /file:[A-Za-z0-9_-]+\.[A-Za-z0-9]+/g
+
+/**
+ * Every uploaded-file reference in use anywhere: page icons and covers (their
+ * own columns) plus media/file blocks embedded in page content. Trashed pages
+ * count too — restoring one must not find its files already swept. This is what
+ * keeps the uploads directory's garbage collection from deleting live files.
+ */
 export function getUsedImages(): string[] {
-  return db
+  const values = db
     .prepare<[], { value: string }>(
       `SELECT DISTINCT icon AS value FROM pages WHERE icon IS NOT NULL
        UNION
@@ -233,6 +242,18 @@ export function getUsedImages(): string[] {
     )
     .all()
     .map((row) => row.value)
+
+  // Media lives inside the serialized document, so scan the content column for
+  // the file references rather than relying on a dedicated column.
+  const refs = new Set(values)
+  const contents = db
+    .prepare<[], { content: string }>("SELECT content FROM pages WHERE content <> ''")
+    .all()
+  for (const { content } of contents) {
+    for (const match of content.matchAll(FILE_REF_PATTERN)) refs.add(match[0])
+  }
+
+  return [...refs]
 }
 
 /* -------------------------------------------------------------------------- */

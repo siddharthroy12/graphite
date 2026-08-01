@@ -5,10 +5,19 @@ import Placeholder from '@tiptap/extension-placeholder'
 import Link from '@tiptap/extension-link'
 import Underline from '@tiptap/extension-underline'
 import Highlight from '@tiptap/extension-highlight'
-import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import { CodeBlock, lowlight } from './CodeBlock'
+import { MediaBlock } from './MediaBlock'
 import { SubpageBlock } from './SubpageBlock'
+import {
+  WrappedParagraph,
+  WrappedHeading,
+  WrappedBlockquote,
+  WrappedBulletList,
+  WrappedOrderedList,
+  WrappedHorizontalRule,
+  WrappedTaskList
+} from './block-wrapper'
 import { registerEditor, unregisterEditor } from './editor-registry'
 import { FormattingMenu } from './FormattingMenu'
 import { SlashCommand } from './slash-command'
@@ -51,17 +60,30 @@ export function Editor({
         StarterKit.configure({
           // Replaced below with the syntax-highlighting version.
           codeBlock: false,
-          heading: { levels: [1, 2, 3] },
+          // Replaced below with versions that wrap their output in a padded div.
+          paragraph: false,
+          heading: false,
+          blockquote: false,
+          bulletList: false,
+          orderedList: false,
+          horizontalRule: false,
           // The line showing where a dragged block will land. Set explicitly
           // rather than left to the 1px `currentColor` default, which is
           // nearly invisible against body text.
           dropcursor: { color: '#2f6fa8', width: 4, class: 'graphite-dropcursor' }
         }),
+        WrappedParagraph,
+        WrappedHeading.configure({ levels: [1, 2, 3] }),
+        WrappedBlockquote,
+        WrappedBulletList,
+        WrappedOrderedList,
+        WrappedHorizontalRule,
         CodeBlock.configure({ lowlight }),
+        MediaBlock,
         SubpageBlock,
         Underline,
         Highlight,
-        TaskList,
+        WrappedTaskList,
         TaskItem.configure({ nested: true }),
         Link.configure({
           openOnClick: false,

@@ -28,7 +28,13 @@ import {
   updatePage
 } from './db'
 import { getDataDir, isDefaultDataDir, relocateDataDir, resetDataDir } from './data-dir'
-import { pruneImageFiles, saveImageFile, type SaveImageInput } from './icons'
+import {
+  pruneImageFiles,
+  saveImageFile,
+  saveMediaFile,
+  type SaveImageInput,
+  type SaveMediaInput
+} from './icons'
 
 function dataLocation(): DataLocation {
   return { dir: getDataDir(), dbPath: getDatabasePath(), isDefault: isDefaultDataDir() }
@@ -88,6 +94,7 @@ export function registerIpcHandlers(): void {
   handle('pages:emptyTrash', () => emptyTrash())
 
   handle('images:upload', (input: SaveImageInput) => saveImageFile(input))
+  handle('media:upload', (input: SaveMediaInput) => saveMediaFile(input))
 
   handle('prefs:get', () => getPreferences())
   handle('prefs:set', (patch: Partial<Preferences>) => setPreferences(patch))

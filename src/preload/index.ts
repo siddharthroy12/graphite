@@ -33,6 +33,11 @@ const api = {
     upload: (data: Uint8Array, type: string, purpose: 'icon' | 'cover') =>
       ipcRenderer.invoke('images:upload', { data, type, purpose })
   },
+  media: {
+    /** Stores an uploaded media/file block's bytes; resolves to its `file:` value. */
+    upload: (data: Uint8Array, type: string, name: string) =>
+      ipcRenderer.invoke('media:upload', { data, type, name })
+  },
   prefs: {
     get: () => ipcRenderer.invoke('prefs:get'),
     set: (patch: Partial<Preferences>) => ipcRenderer.invoke('prefs:set', patch)

@@ -144,6 +144,10 @@ export interface GraphiteApi {
     /** Stores an uploaded image; resolves to the `file:` value naming it. */
     upload(data: Uint8Array, type: string, purpose: 'icon' | 'cover'): Promise<string>
   }
+  media: {
+    /** Stores an uploaded media/file block's bytes; resolves to its `file:` value. */
+    upload(data: Uint8Array, type: string, name: string): Promise<string>
+  }
   prefs: {
     get(): Promise<Preferences>
     set(patch: Partial<Preferences>): Promise<Preferences>

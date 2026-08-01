@@ -1,5 +1,5 @@
-@import 'tailwindcss';
-@import 'tw-animate-css';
+@import "tailwindcss";
+@import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -115,7 +115,13 @@
   body {
     @apply bg-background text-foreground;
     font-family:
-      ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, system-ui, sans-serif;
+      ui-sans-serif,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      Inter,
+      system-ui,
+      sans-serif;
     font-synthesis-weight: none;
     text-rendering: optimizeLegibility;
     overflow: hidden;
@@ -127,7 +133,7 @@
     -webkit-user-drag: none;
   }
 
-  [draggable='true'] {
+  [draggable="true"] {
     -webkit-user-drag: element;
   }
 
@@ -142,11 +148,19 @@
 
   ::-webkit-scrollbar-thumb {
     @apply rounded-full border-[3px] border-solid border-transparent bg-clip-padding;
-    background-color: color-mix(in oklab, var(--muted-foreground) 35%, transparent);
+    background-color: color-mix(
+      in oklab,
+      var(--muted-foreground) 35%,
+      transparent
+    );
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background-color: color-mix(in oklab, var(--muted-foreground) 55%, transparent);
+    background-color: color-mix(
+      in oklab,
+      var(--muted-foreground) 55%,
+      transparent
+    );
   }
 }
 
@@ -257,6 +271,100 @@ body.is-dragging-block * {
   background-color: transparent;
 }
 
+/* `.node-media` — the outer element tiptap's React node view renderer creates
+   to mount the block in, one level above the `NodeViewWrapper` div the
+   component itself renders — is a plain block-level `div` by default, so it
+   always stretches to the full column width regardless of the media's own
+   rendered size (an image narrower than the column, say). Since the selection
+   ring below traces *this* element, an unselected image already sits inside a
+   full-width invisible box; selecting it just makes that box visible.
+   `width: fit-content` fixes that while staying `display: block` — a block
+   box always starts a new line before and after itself regardless of its own
+   width, which is exactly the "stacks like every other block" behaviour this
+   depends on. `inline-block` looks like the obvious alternative but is wrong
+   here: it flows in line with siblings instead of forcing a break, so two
+   images narrow enough to fit side by side would render side by side, with
+   no vertical gap between them, instead of stacking. Audio is excluded — its
+   player bar is meant to span the column — via `:has()` rather than an
+   attribute selector, because `data-kind` (set through `renderHTML`) only
+   ever reaches the DOM when the node is serialized without a node view; the
+   live node-view element here carries none of a node's own HTML attributes. */
+.graphite-editor .tiptap .node-media {
+  width: fit-content;
+  max-width: 100%;
+  padding: 5px;
+}
+
+.graphite-editor .tiptap .node-media:has(audio) {
+  width: 100%;
+}
+
+/* A selected media block (image/video/audio/file) gets the same bluish tint
+   as a marquee block selection below, rather than the plain-text wash above —
+   media reads more like a distinct object on the page than a line of text, so
+   it gets the more visible treatment. A `box-shadow` rather than a bigger
+   padding: growing the existing 5px on (de)selection would shift the layout
+   every time, where a shadow paints outside the box without taking part in
+   layout, so the box's own size never changes.
+
+   It traces `.node-media-content` (the inner wrapper, sized to the actual
+   image/video/file card — see MediaBlock.tsx), not `.node-media` (the outer
+   element tiptap's React node view renderer stamps on its own wrapper, and
+   the one `ProseMirror-selectednode` actually toggles on, hence the
+   `.node-media.ProseMirror-selectednode` prefix below). `.node-media` always
+   carries a constant 5px padding for alignment with every other block, so a
+   ring drawn on it would sit flush with that outer edge, leaving the padding
+   as a plain, unfilled gap before the content it's meant to be marking as
+   selected — tracing the inner element instead keeps the ring flush with the
+   content.
+
+   `:not(.block-selected)` matters: tiptap's own node-view selection check
+   (`handleSelectionUpdate`) isn't actually gated on the selection being a
+   `NodeSelection` — it only checks whether the current selection's range
+   contains the node, full stop. So the marquee's multi-block *text* selection
+   (see block-selection.ts) also puts `ProseMirror-selectednode` on every
+   media block it happens to span, alongside the marquee's own
+   `.block-selected`. Excluding `.block-selected` restricts the ring to an
+   actual single-block selection (clicking the block's own grip), which never
+   carries that class — the marquee case keeps only its own flat tint, which
+   stays inside its box like every other block's. */
+.graphite-editor
+  .tiptap
+  .node-media.ProseMirror-selectednode:not(.block-selected)
+  .node-media-content {
+  /* Matches the `rounded-[3px]` on the image/video/file card itself — the
+     shadow traces this element's own corner, so a mismatched radius here
+     would show as one corner peeking out from behind the content's
+     differently-rounded one. Below the theme's smallest step
+     (`--radius-sm`), hence a literal pixel value rather than a variable. */
+  border-radius: 3px;
+  box-shadow: 0 0 0 4px color-mix(in oklab, #2f6fa8 30%, transparent);
+}
+
+/* The marquee case (`.block-selected` alone, no ring above): the generic
+   `.block-selected` rule already gives this element the same background
+   every other selected block gets, but that paints *behind* the media
+   content — and unlike a paragraph, an image/video is opaque, so the tint
+   would only ever show in the 5px padding ring around it, not over the
+   content itself. Rather than reach for another box-shadow (the very thing
+   just excluded above, for bleeding into neighbouring gaps), this paints an overlay *in
+   front of* the content instead: `position: relative` on the box plus an
+   absolutely-positioned, click-through `::after` the same size as the box,
+   tinted the same colour. It sits inside the box's own edges like a normal
+   background would, so it can never bleed into the gap between blocks. */
+.graphite-editor .tiptap .node-media.block-selected {
+  position: relative;
+}
+
+.graphite-editor .tiptap .node-media.block-selected::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background-color: color-mix(in oklab, #2f6fa8 30%, transparent);
+}
+
 /* Drop indicator for a block drag, drawn by the handle plugin. */
 .block-drop-indicator {
   @apply pointer-events-none absolute z-30 h-1 rounded-full opacity-0;
@@ -318,9 +426,30 @@ body.is-selecting-blocks * {
   margin-top: var(--block-gap);
 }
 
+/* Every block (paragraph, heading, blockquote, list, divider) renders inside
+   an extra wrapping div — see block-wrapper.ts — purely so it can carry this
+   padding without disturbing the tag's own styling below. Code blocks, media
+   and subpages opt out (they already have their own considered padding), so
+   they don't get this class. */
+.graphite-editor .tiptap .block-wrap {
+  padding: 5px;
+}
+
+/* A list is one wrapped block, but the marquee selects and tints its *items*
+   individually (see `leafBlockRanges`), not the list as a whole — so the 5px
+   has to live on each `<li>`'s own box instead, below. Left at 5px here, a
+   selected item would sit 5px further right than every other selected
+   block's tint (this padding, *plus* whatever padding the item adds of its
+   own), and a selected list's tint wouldn't reach as far left as a selected
+   paragraph's. Zeroing it keeps every tinted box starting from the same
+   edge, list or not. */
+.graphite-editor .tiptap .block-wrap:has(> ul),
+.graphite-editor .tiptap .block-wrap:has(> ol) {
+  padding: 0;
+}
+
 .graphite-editor .tiptap p {
   @apply leading-7;
-  padding: 3px 2px;
 }
 
 /* Breathing room above a heading is padding *inside* its own box, not margin
@@ -353,25 +482,19 @@ body.is-selecting-blocks * {
   gap: var(--block-gap);
 }
 
-/* `> * + *` below sets this same margin-top on every block but a list — this
-   selector is more specific and would otherwise win with 0. Skipped for a
-   list that opens the document, matching how the generic rule treats it. */
-.graphite-editor .tiptap ul:not(:first-child),
-.graphite-editor .tiptap ol:not(:first-child) {
-  margin-top: var(--block-gap);
-}
-
 /* Markers are rendered inside each item's own box (like the to-do checkbox),
    rather than as CSS list markers in the gutter, so a selection tint on the
-   item covers the marker and every row highlights uniformly. */
-.graphite-editor .tiptap ul:not([data-type='taskList']) > li,
+   item covers the marker and every row highlights uniformly. The 5px on
+   three sides matches every other block's own `.block-wrap` padding (see
+   above) — left stays wider to make room for the marker instead. */
+.graphite-editor .tiptap ul:not([data-type="taskList"]) > li,
 .graphite-editor .tiptap ol > li {
   position: relative;
-  padding-left: 1.5rem;
+  padding: 5px 5px 5px 1.5rem;
 }
 
-.graphite-editor .tiptap ul:not([data-type='taskList']) > li::before {
-  content: '•';
+.graphite-editor .tiptap ul:not([data-type="taskList"]) > li::before {
+  content: "•";
   position: absolute;
   left: 0.5rem;
   color: color-mix(in oklab, var(--foreground) 55%, transparent);
@@ -386,7 +509,7 @@ body.is-selecting-blocks * {
 }
 
 .graphite-editor .tiptap ol > li::before {
-  content: counter(graphite-ol) '.';
+  content: counter(graphite-ol) ".";
   position: absolute;
   left: 0.25rem;
   color: color-mix(in oklab, var(--foreground) 55%, transparent);
@@ -428,16 +551,23 @@ body.is-selecting-blocks * {
    an absent class. Code blocks keep their own mono via the rules above. */
 .page-font-default {
   font-family:
-    ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, system-ui, sans-serif;
+    ui-sans-serif,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Inter,
+    system-ui,
+    sans-serif;
 }
 
 .page-font-serif {
-  font-family: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 }
 
 .page-font-mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
-    'Courier New', monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
 }
 
 /* No margin-top of its own: the generic `.tiptap > * + *` rule below already
@@ -458,7 +588,7 @@ body.is-selecting-blocks * {
 }
 
 .graphite-editor .tiptap hr::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 50%;
   right: 0;
@@ -470,7 +600,11 @@ body.is-selecting-blocks * {
 
 .graphite-editor .tiptap a {
   @apply cursor-pointer underline underline-offset-2;
-  text-decoration-color: color-mix(in oklab, var(--foreground) 40%, transparent);
+  text-decoration-color: color-mix(
+    in oklab,
+    var(--foreground) 40%,
+    transparent
+  );
 }
 
 .graphite-editor .tiptap mark {
@@ -480,31 +614,36 @@ body.is-selecting-blocks * {
 }
 
 /* Task lists */
-.graphite-editor .tiptap ul[data-type='taskList'] {
+.graphite-editor .tiptap ul[data-type="taskList"] {
   @apply list-none pl-0;
 }
 
-.graphite-editor .tiptap ul[data-type='taskList'] li {
+.graphite-editor .tiptap ul[data-type="taskList"] li {
   /* pl-2 (0.5rem) matches exactly where a bullet/number marker sits — see
      `left: 0.5rem` below — so a selection tint insets the checkbox the same
      amount it insets a bullet, instead of sitting flush against one kind of
-     list but not the other. */
-  @apply flex items-start gap-2 pl-2;
+     list but not the other. The other three sides match the 5px every other
+     block's own `.block-wrap` carries. */
+  @apply flex items-start gap-2 pt-[5px] pr-[5px] pb-[5px] pl-2;
 }
 
-.graphite-editor .tiptap ul[data-type='taskList'] li > label {
+.graphite-editor .tiptap ul[data-type="taskList"] li > label {
   @apply mt-[7px] flex-none select-none;
 }
 
-.graphite-editor .tiptap ul[data-type='taskList'] li > div {
+.graphite-editor .tiptap ul[data-type="taskList"] li > div {
   @apply min-w-0 flex-1;
 }
 
-.graphite-editor .tiptap ul[data-type='taskList'] input[type='checkbox'] {
+.graphite-editor .tiptap ul[data-type="taskList"] input[type="checkbox"] {
   @apply size-4 cursor-pointer rounded border-input accent-current;
 }
 
-.graphite-editor .tiptap ul[data-type='taskList'] li[data-checked='true'] > div {
+.graphite-editor
+  .tiptap
+  ul[data-type="taskList"]
+  li[data-checked="true"]
+  > div {
   @apply text-muted-foreground line-through;
 }
 
