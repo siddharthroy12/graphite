@@ -1,38 +1,27 @@
 import { mergeAttributes } from '@tiptap/core'
-import Paragraph from '@tiptap/extension-paragraph'
 import Heading from '@tiptap/extension-heading'
 import Blockquote from '@tiptap/extension-blockquote'
-import BulletList from '@tiptap/extension-bullet-list'
-import OrderedList from '@tiptap/extension-ordered-list'
 import HorizontalRule from '@tiptap/extension-horizontal-rule'
-import TaskList from '@tiptap/extension-task-list'
 
 /**
- * Every block below renders inside an extra `<div class="block-wrap">`,
- * styled with a uniform 5px padding in index.css. Only `renderHTML` is
- * touched — each node keeps its original tag, attributes and content hole,
- * just nested one level deeper. `parseHTML` is untouched, so loading a
- * stored document or pasting HTML from outside — neither of which ever
- * produces a `.block-wrap` div — still resolves to the right node; the
- * wrapper only ever appears on output.
+ * Blocks that carry their own tag-specific padding — a heading's top space, a
+ * blockquote's rule and indent — render inside an extra `<div class="block-wrap">`
+ * so the uniform 5px block padding can live on the wrapper without fighting
+ * that tag styling. Only `renderHTML` is touched; each node keeps its tag,
+ * attributes and content hole, nested one level deeper. `parseHTML` is left
+ * alone, so loading a stored document or pasting external HTML — neither of
+ * which produces a `.block-wrap` div — still resolves to the right node.
  *
- * List items get no override here, unlike every other block: a `<div>`
- * between `<ul>`/`<ol>` and `<li>` is invalid HTML (a list's only valid
- * children are its `<li>`s), so they keep their own un-wrapped padding.
- * Code blocks, media and subpages are unaffected too — they already render
- * through their own React node views with their own considered padding, not
- * through the renderHTML path this file customises.
+ * Paragraphs and lists are deliberately *not* here. A paragraph is padded
+ * directly (`.tiptap > p` in index.css) so its `is-empty` placeholder and its
+ * selection tint land on the `<p>` itself rather than on a wrapper — ProseMirror
+ * puts node decorations on a node's outermost element, and a wrapper would
+ * steal them. A list's selectable unit is each item, not the list as a whole,
+ * so the padding lives on the `<li>` (a `block-wrap` class added through the
+ * list-item HTMLAttributes) — a wrapper around the whole `<ul>`/`<ol>` would
+ * be the wrong element, and one between the list and its `<li>`s is invalid
+ * HTML besides.
  */
-
-export const WrappedParagraph = Paragraph.extend({
-  renderHTML({ HTMLAttributes }) {
-    return [
-      'div',
-      { class: 'block-wrap' },
-      ['p', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0]
-    ]
-  }
-})
 
 export const WrappedHeading = Heading.extend({
   renderHTML({ node, HTMLAttributes }) {
@@ -56,45 +45,12 @@ export const WrappedBlockquote = Blockquote.extend({
   }
 })
 
-export const WrappedBulletList = BulletList.extend({
-  renderHTML({ HTMLAttributes }) {
-    return [
-      'div',
-      { class: 'block-wrap' },
-      ['ul', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0]
-    ]
-  }
-})
-
-export const WrappedOrderedList = OrderedList.extend({
-  renderHTML({ HTMLAttributes }) {
-    // A list starting at 1 doesn't render a redundant `start="1"` — matches
-    // the base extension's own renderHTML exactly, just nested one deeper.
-    const { start, ...attributesWithoutStart } = HTMLAttributes
-    const ol =
-      start === 1
-        ? ['ol', mergeAttributes(this.options.HTMLAttributes, attributesWithoutStart), 0]
-        : ['ol', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0]
-    return ['div', { class: 'block-wrap' }, ol]
-  }
-})
-
 export const WrappedHorizontalRule = HorizontalRule.extend({
   renderHTML({ HTMLAttributes }) {
     return [
       'div',
       { class: 'block-wrap' },
       ['hr', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes)]
-    ]
-  }
-})
-
-export const WrappedTaskList = TaskList.extend({
-  renderHTML({ HTMLAttributes }) {
-    return [
-      'div',
-      { class: 'block-wrap' },
-      ['ul', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, { 'data-type': this.name }), 0]
     ]
   }
 })

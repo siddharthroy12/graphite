@@ -5,19 +5,12 @@ import Placeholder from '@tiptap/extension-placeholder'
 import Link from '@tiptap/extension-link'
 import Underline from '@tiptap/extension-underline'
 import Highlight from '@tiptap/extension-highlight'
+import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import { CodeBlock, lowlight } from './CodeBlock'
 import { MediaBlock } from './MediaBlock'
 import { SubpageBlock } from './SubpageBlock'
-import {
-  WrappedParagraph,
-  WrappedHeading,
-  WrappedBlockquote,
-  WrappedBulletList,
-  WrappedOrderedList,
-  WrappedHorizontalRule,
-  WrappedTaskList
-} from './block-wrapper'
+import { WrappedHeading, WrappedBlockquote, WrappedHorizontalRule } from './block-wrapper'
 import { registerEditor, unregisterEditor } from './editor-registry'
 import { FormattingMenu } from './FormattingMenu'
 import { SlashCommand } from './slash-command'
@@ -60,31 +53,31 @@ export function Editor({
         StarterKit.configure({
           // Replaced below with the syntax-highlighting version.
           codeBlock: false,
-          // Replaced below with versions that wrap their output in a padded div.
-          paragraph: false,
+          // Replaced below with versions that wrap their output in a padded div
+          // (headings/blockquotes/dividers carry their own tag padding, so the
+          // uniform block padding needs a separate wrapper to sit on).
           heading: false,
           blockquote: false,
-          bulletList: false,
-          orderedList: false,
           horizontalRule: false,
+          // Each list item is a selectable block, so the block padding lives on
+          // the `<li>` — added as a class through the item's HTMLAttributes,
+          // not a wrapper around the whole list.
+          listItem: { HTMLAttributes: { class: 'block-wrap' } },
           // The line showing where a dragged block will land. Set explicitly
           // rather than left to the 1px `currentColor` default, which is
           // nearly invisible against body text.
           dropcursor: { color: '#2f6fa8', width: 4, class: 'graphite-dropcursor' }
         }),
-        WrappedParagraph,
         WrappedHeading.configure({ levels: [1, 2, 3] }),
         WrappedBlockquote,
-        WrappedBulletList,
-        WrappedOrderedList,
         WrappedHorizontalRule,
         CodeBlock.configure({ lowlight }),
         MediaBlock,
         SubpageBlock,
         Underline,
         Highlight,
-        WrappedTaskList,
-        TaskItem.configure({ nested: true }),
+        TaskList,
+        TaskItem.configure({ nested: true, HTMLAttributes: { class: 'block-wrap' } }),
         Link.configure({
           openOnClick: false,
           autolink: true,

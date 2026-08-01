@@ -426,30 +426,26 @@ body.is-selecting-blocks * {
   margin-top: var(--block-gap);
 }
 
-/* Every block (paragraph, heading, blockquote, list, divider) renders inside
-   an extra wrapping div — see block-wrapper.ts — purely so it can carry this
-   padding without disturbing the tag's own styling below. Code blocks, media
-   and subpages opt out (they already have their own considered padding), so
-   they don't get this class. */
+/* Headings, blockquotes and dividers render inside an extra `.block-wrap` div
+   (see block-wrapper.ts) that carries this uniform block padding without
+   disturbing their own tag styling. List items carry the same class on the
+   `<li>` itself (added through the list-item HTMLAttributes), though their own
+   marker-offset padding below wins over this. Paragraphs are padded directly. */
 .graphite-editor .tiptap .block-wrap {
   padding: 5px;
 }
 
-/* A list is one wrapped block, but the marquee selects and tints its *items*
-   individually (see `leafBlockRanges`), not the list as a whole — so the 5px
-   has to live on each `<li>`'s own box instead, below. Left at 5px here, a
-   selected item would sit 5px further right than every other selected
-   block's tint (this padding, *plus* whatever padding the item adds of its
-   own), and a selected list's tint wouldn't reach as far left as a selected
-   paragraph's. Zeroing it keeps every tinted box starting from the same
-   edge, list or not. */
-.graphite-editor .tiptap .block-wrap:has(> ul),
-.graphite-editor .tiptap .block-wrap:has(> ol) {
-  padding: 0;
-}
-
 .graphite-editor .tiptap p {
   @apply leading-7;
+}
+
+/* Top-level paragraphs get the same 5px block padding straight on the `<p>`,
+   not through a wrapper div: ProseMirror puts a node's empty placeholder and
+   its selection tint on the node's own outermost element, so the `<p>` has to
+   be that element for both to land. Scoped to direct children so a paragraph
+   inside a list item or blockquote keeps its own tighter padding instead. */
+.graphite-editor .tiptap > p {
+  padding: 5px;
 }
 
 /* Breathing room above a heading is padding *inside* its own box, not margin
