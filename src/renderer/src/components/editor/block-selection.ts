@@ -72,7 +72,7 @@ export function leafBlockRanges(doc: ProseMirrorNode): BlockRange[] {
  * `TextSelection.between` snaps each endpoint to the nearest text position —
  * exactly what lands the selection inside a list item's paragraph rather than
  * at the bare list-item boundary, and why it's used for the text-block ends.
- * But that same snapping steps *out* of an atom block (an image/video/file,
+ * But that same snapping steps *out* of an atom block (an image or file,
  * which has no text inside), so a marquee that begins or ends on one would
  * drop it from the selection entirely — the block would look tinted (the
  * decoration follows the selection) yet not actually be selected, and delete

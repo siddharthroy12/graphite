@@ -99,6 +99,9 @@ function CodeBlockView({ node, updateAttributes }: NodeViewProps): React.JSX.Ele
  */
 export const CodeBlock = CodeBlockLowlight.extend({
   addNodeView() {
-    return ReactNodeViewRenderer(CodeBlockView)
+    // `block-wrap` on the node view's outer element (the one the selection tint
+    // and drag target land on) gives the code block the same 5px block padding
+    // as every other block — see index.css.
+    return ReactNodeViewRenderer(CodeBlockView, { className: 'block-wrap' })
   }
 })

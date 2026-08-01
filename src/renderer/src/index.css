@@ -284,22 +284,21 @@ body.is-dragging-block * {
    depends on. `inline-block` looks like the obvious alternative but is wrong
    here: it flows in line with siblings instead of forcing a break, so two
    images narrow enough to fit side by side would render side by side, with
-   no vertical gap between them, instead of stacking. Audio is excluded — its
-   player bar is meant to span the column — via `:has()` rather than an
-   attribute selector, because `data-kind` (set through `renderHTML`) only
-   ever reaches the DOM when the node is serialized without a node view; the
-   live node-view element here carries none of a node's own HTML attributes. */
+   no vertical gap between them, instead of stacking. */
 .graphite-editor .tiptap .node-media {
   width: fit-content;
   max-width: 100%;
   padding: 5px;
 }
 
-.graphite-editor .tiptap .node-media:has(audio) {
+/* The upload prompt and the read-only placeholder (neither carries the
+   `.node-media-content` wrapper the filled states do) span the column instead
+   of shrink-wrapping to their label, so the drop target is a full-width row. */
+.graphite-editor .tiptap .node-media:not(:has(.node-media-content)) {
   width: 100%;
 }
 
-/* A selected media block (image/video/audio/file) gets the same bluish tint
+/* A selected media block (image/file) gets the same bluish tint
    as a marquee block selection below, rather than the plain-text wash above —
    media reads more like a distinct object on the page than a line of text, so
    it gets the more visible treatment. A `box-shadow` rather than a bigger
@@ -308,7 +307,7 @@ body.is-dragging-block * {
    layout, so the box's own size never changes.
 
    It traces `.node-media-content` (the inner wrapper, sized to the actual
-   image/video/file card — see MediaBlock.tsx), not `.node-media` (the outer
+   image or file card — see MediaBlock.tsx), not `.node-media` (the outer
    element tiptap's React node view renderer stamps on its own wrapper, and
    the one `ProseMirror-selectednode` actually toggles on, hence the
    `.node-media.ProseMirror-selectednode` prefix below). `.node-media` always
@@ -332,7 +331,7 @@ body.is-dragging-block * {
   .tiptap
   .node-media.ProseMirror-selectednode:not(.block-selected)
   .node-media-content {
-  /* Matches the `rounded-[3px]` on the image/video/file card itself — the
+  /* Matches the `rounded-[3px]` on the image or file card itself — the
      shadow traces this element's own corner, so a mismatched radius here
      would show as one corner peeking out from behind the content's
      differently-rounded one. Below the theme's smallest step
@@ -344,7 +343,7 @@ body.is-dragging-block * {
 /* The marquee case (`.block-selected` alone, no ring above): the generic
    `.block-selected` rule already gives this element the same background
    every other selected block gets, but that paints *behind* the media
-   content — and unlike a paragraph, an image/video is opaque, so the tint
+   content — and unlike a paragraph, an image is opaque, so the tint
    would only ever show in the 5px padding ring around it, not over the
    content itself. Rather than reach for another box-shadow (the very thing
    just excluded above, for bleeding into neighbouring gaps), this paints an overlay *in
@@ -535,7 +534,7 @@ body.is-selecting-blocks * {
 }
 
 .graphite-editor .tiptap pre {
-  @apply my-3 overflow-x-auto rounded-lg bg-muted p-4 font-mono text-sm;
+  @apply overflow-x-auto rounded-lg bg-muted p-4 font-mono text-sm;
 }
 
 .graphite-editor .tiptap pre code {

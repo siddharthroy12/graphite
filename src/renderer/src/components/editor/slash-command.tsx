@@ -6,7 +6,6 @@ import {
   CheckSquare,
   ChevronRight,
   Code2,
-  File as FileIcon,
   FileText,
   Heading1,
   Heading2,
@@ -15,14 +14,12 @@ import {
   List,
   ListOrdered,
   Minus,
-  Music,
   Quote,
   Type,
-  Video,
   type LucideIcon
 } from 'lucide-react'
 import { SUBPAGE_NODE } from '@shared/subpage-block'
-import { MEDIA_NODE, type MediaKind } from '@shared/media'
+import { MEDIA_NODE } from '@shared/media'
 import { pageIdFor, refreshTree } from './editor-registry'
 import { SlashMenu, type SlashMenuHandle } from './SlashMenu'
 
@@ -113,28 +110,7 @@ export const SLASH_ITEMS: SlashItem[] = [
     description: 'Upload an image',
     icon: ImageIcon,
     keywords: ['picture', 'photo', 'png', 'jpg', 'gif'],
-    command: ({ editor, range }) => insertMedia(editor, range, 'image')
-  },
-  {
-    title: 'Video',
-    description: 'Upload a video',
-    icon: Video,
-    keywords: ['movie', 'clip', 'mp4', 'mov'],
-    command: ({ editor, range }) => insertMedia(editor, range, 'video')
-  },
-  {
-    title: 'Audio',
-    description: 'Upload an audio clip',
-    icon: Music,
-    keywords: ['sound', 'music', 'mp3', 'wav', 'voice'],
-    command: ({ editor, range }) => insertMedia(editor, range, 'audio')
-  },
-  {
-    title: 'File',
-    description: 'Upload any file',
-    icon: FileIcon,
-    keywords: ['attachment', 'document', 'pdf', 'download', 'upload'],
-    command: ({ editor, range }) => insertMedia(editor, range, 'file')
+    command: ({ editor, range }) => insertImage(editor, range)
   },
   {
     title: 'Divider',
@@ -175,13 +151,13 @@ export const SLASH_ITEMS: SlashItem[] = [
   }
 ]
 
-/** Drops in an empty media block; its node view prompts for the upload. */
-function insertMedia(editor: Editor, range: Range, kind: MediaKind): void {
+/** Drops in an empty image block; its node view prompts for the upload. */
+function insertImage(editor: Editor, range: Range): void {
   editor
     .chain()
     .focus()
     .deleteRange(range)
-    .insertContent({ type: MEDIA_NODE, attrs: { kind } })
+    .insertContent({ type: MEDIA_NODE, attrs: { kind: 'image' } })
     .run()
 }
 

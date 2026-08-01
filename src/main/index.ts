@@ -32,16 +32,15 @@ let mainWindow: BrowserWindow | null = null
  * The app never loads remote code or makes network requests, so production gets
  * a `'self'`-only policy. Dev additionally allows the Vite dev server's inline
  * HMR preamble and websocket. The icon scheme, which the main process serves
- * uploaded files on, is allowed for images (`img-src`), for `<video>`/`<audio>`
- * (`media-src`), and for `fetch` (`connect-src`, used to download file blocks)
- * — those are all local files the user chose themselves, not remote content.
+ * uploaded files on, is allowed for images (`img-src`) and for `fetch`
+ * (`connect-src`, used to download file blocks) — those are all local files the
+ * user chose themselves, not remote content.
  */
 function applyContentSecurityPolicy(): void {
   const images = `img-src 'self' data: blob: ${ICON_SCHEME}:`
-  const media = `media-src 'self' blob: ${ICON_SCHEME}:`
   const policy = isDev
-    ? `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; ${images}; ${media}; font-src 'self' data:; connect-src 'self' ${ICON_SCHEME}: ws: http://localhost:*`
-    : `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; ${images}; ${media}; font-src 'self' data:; connect-src 'self' ${ICON_SCHEME}:`
+    ? `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; ${images}; font-src 'self' data:; connect-src 'self' ${ICON_SCHEME}: ws: http://localhost:*`
+    : `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; ${images}; font-src 'self' data:; connect-src 'self' ${ICON_SCHEME}:`
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({

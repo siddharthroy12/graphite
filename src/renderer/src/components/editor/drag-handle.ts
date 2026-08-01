@@ -419,8 +419,8 @@ export const BlockDragHandle = Extension.create({
             const innerDepth = target.isItem ? 2 : 1
 
             // Reuse the hovered block when it's already empty, so clicking `+`
-            // on a blank line doesn't leave one stranded. Atoms (image/video/
-            // audio/file blocks, subpages, dividers) are excluded even though
+            // on a blank line doesn't leave one stranded. Atoms (image/file
+            // blocks, subpages, dividers) are excluded even though
             // they too report `content.size === 0` — an atom *is* its content,
             // it has none to be "empty" of, and treating one as reusable put
             // the caret at a position with no valid text selection nearby.
