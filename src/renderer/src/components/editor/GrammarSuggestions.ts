@@ -60,16 +60,22 @@ export const GrammarSuggestions = Extension.create({
         props: {
           decorations: (state) => key.getState(state),
 
-          handleClick: (view, pos) => {
-            const found = key
-              .getState(view.state)
-              ?.find(pos, pos)
-              .find((deco) => (deco.spec as GrammarSpec | undefined)?.grammar)
-            if (!found) return false
-            openPopup(found.from, found.to, found.spec as GrammarSpec)
-            // Swallow the click so it opens the popup instead of just moving the
-            // caret (which would fire a transaction and close the popup again).
-            return true
+          // Right-click a flagged word for its suggestion, like a native
+          // spellcheck menu. Left-click is left alone so it just places the
+          // caret for editing.
+          handleDOMEvents: {
+            contextmenu: (view, event) => {
+              const at = view.posAtCoords({ left: event.clientX, top: event.clientY })
+              if (!at) return false
+              const found = key
+                .getState(view.state)
+                ?.find(at.pos, at.pos)
+                .find((deco) => (deco.spec as GrammarSpec | undefined)?.grammar)
+              if (!found) return false
+              event.preventDefault()
+              openPopup(found.from, found.to, found.spec as GrammarSpec)
+              return true
+            }
           }
         },
 
