@@ -375,16 +375,23 @@ export const BlockSelection = Extension.create({
               return
             }
 
-            // A press that never became a marquee. `preventDefault` on mousedown
-            // ate the native caret placement, so a click below the content is
-            // restored here as focus at the document's end.
-            if (start?.below) {
-              const end = view.state.doc.content.size
-              view.dispatch(
-                view.state.tr.setSelection(TextSelection.create(view.state.doc, end))
-              )
-              view.focus()
-            }
+            // A press that never became a marquee — a plain click in a margin
+            // or the empty space below the content. `preventDefault` on
+            // mousedown ate the native caret placement, so it's restored here:
+            // this both places the caret and drops any block selection the
+            // marquee left behind, so clicking off to the side or below the
+            // content deselects the blocks like clicking into the text would.
+            // A click below the content lands at the document's end; a click in
+            // a side margin lands at the nearest text position to the pointer.
+            if (!start) return
+            const end = view.state.doc.content.size
+            const target = start.below
+              ? end
+              : (view.posAtCoords({ left: pointer.x, top: pointer.y })?.pos ?? end)
+            view.dispatch(
+              view.state.tr.setSelection(TextSelection.create(view.state.doc, target))
+            )
+            view.focus()
           }
 
           scrollHost.addEventListener('mousedown', onMouseDown)
