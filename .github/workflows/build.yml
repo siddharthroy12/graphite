@@ -1,22 +1,49 @@
-name: Release
+name: Build
 
-# Cut a release by pushing a tag like `v0.1.0`. Each OS builds its own
-# installers; on a tag they're attached to the GitHub Release, and every run
-# uploads them as workflow artifacts too. `workflow_dispatch` lets you build the
-# distributables on demand without tagging (artifacts only).
+# Pull requests get a fast typecheck + build. Pushes to main additionally
+# package and upload installers for all three desktop platforms, so a
+# downloadable build is always available without tagging. Pushing a v* tag does
+# the same and also attaches the installers to the GitHub Release.
 on:
   push:
+    branches: [main]
     tags: ['v*']
+  pull_request:
   workflow_dispatch:
 
+# Attaching installers to a Release needs write access to contents.
 permissions:
   contents: write
 
+# A newer push to the same ref cancels the in-flight run.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
-    name: Build ${{ matrix.platform }}
+  check:
+    name: Typecheck & build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      # `npm ci` runs the postinstall electron-rebuild for better-sqlite3, which
+      # needs a C/C++ toolchain — present on ubuntu-latest by default.
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+
+  package:
+    name: Package ${{ matrix.platform }}
+    needs: check
+    # Packaging all three OSes is slow; skip it on pull requests, where the
+    # check job above already proves the app compiles.
+    if: github.event_name != 'pull_request'
     strategy:
-      # One OS failing shouldn't throw away the others' artifacts.
+      # One OS failing shouldn't throw away the others' installers.
       fail-fast: false
       matrix:
         include:
