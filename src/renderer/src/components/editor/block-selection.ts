@@ -214,7 +214,14 @@ export const BlockSelection = Extension.create({
             return !!last && clientY > last.getBoundingClientRect().bottom
           }
 
-          let origin: { x: number; y: number; below: boolean } | null = null
+          // `lasso` presses draw the marquee; `deselect` presses (a click on the
+          // page cover) only drop an existing block selection on mouseup.
+          let origin: {
+            x: number
+            y: number
+            below: boolean
+            mode: 'lasso' | 'deselect'
+          } | null = null
           let active = false
           /** Last known pointer position, in viewport coordinates. */
           let pointer = { x: 0, y: 0 }
@@ -329,18 +336,55 @@ export const BlockSelection = Extension.create({
             }
           }
 
-          const onMouseDown = (event: MouseEvent): void => {
-            if (!canStart(event)) return
-            origin = { x: event.clientX, y: event.clientY, below: belowContent(event.clientY) }
+          /** Records a press that only drops an existing block selection. */
+          const startDeselect = (event: MouseEvent): void => {
+            origin = { x: event.clientX, y: event.clientY, below: false, mode: 'deselect' }
             pointer = { x: event.clientX, y: event.clientY }
-            // Stops the browser from starting its own text selection, which
-            // would drag across the title and icon above the editor. A plain
-            // click below the content is restored on mouseup.
-            event.preventDefault()
+          }
+
+          const onMouseDown = (event: MouseEvent): void => {
+            if (event.button !== 0) return
+            const el = event.target instanceof Element ? event.target : null
+            // The block handles own their own gestures.
+            if (el?.closest('.block-controls')) return
+
+            // A click anywhere on the page cover just drops the block selection
+            // (on mouseup) — no lasso and no caret move, so the cover's own
+            // controls and reposition drag keep working. Checked before
+            // `canStart` so the cover behaves the same across its whole width,
+            // not lassoing where it overhangs the content column's margins.
+            if (el?.closest('[data-page-cover]')) {
+              startDeselect(event)
+              return
+            }
+
+            if (canStart(event)) {
+              origin = {
+                x: event.clientX,
+                y: event.clientY,
+                below: belowContent(event.clientY),
+                mode: 'lasso'
+              }
+              pointer = { x: event.clientX, y: event.clientY }
+              // Stops the browser from starting its own text selection, which
+              // would drag across the title and icon above the editor. A plain
+              // click below the content is restored on mouseup.
+              event.preventDefault()
+              return
+            }
+
+            // Any other chrome inside the scroll area but outside the editor
+            // body — the header strip, the empty space above the title, the
+            // title and icon themselves. A plain click there drops the block
+            // selection too, so clicking above the title deselects even with no
+            // cover present. Native behaviour (focusing the title, etc.) is left
+            // alone: no `preventDefault`, and a deselect press never lassos.
+            if (el && !view.dom.contains(el)) startDeselect(event)
           }
 
           const onMouseMove = (event: MouseEvent): void => {
-            if (!origin) return
+            // A cover press never lassos, however far the pointer travels.
+            if (!origin || origin.mode !== 'lasso') return
             pointer = { x: event.clientX, y: event.clientY }
 
             if (!active) {
@@ -375,6 +419,22 @@ export const BlockSelection = Extension.create({
               return
             }
 
+            if (!start) return
+
+            // A cover press: just drop any block selection, collapsing it in
+            // place. No caret move and no `view.focus()` — clicking the cover
+            // shouldn't pull the cursor into the body.
+            if (start.mode === 'deselect') {
+              if (!view.state.selection.empty) {
+                view.dispatch(
+                  view.state.tr.setSelection(
+                    TextSelection.create(view.state.doc, view.state.selection.from)
+                  )
+                )
+              }
+              return
+            }
+
             // A press that never became a marquee — a plain click in a margin
             // or the empty space below the content. `preventDefault` on
             // mousedown ate the native caret placement, so it's restored here:
@@ -383,7 +443,6 @@ export const BlockSelection = Extension.create({
             // content deselects the blocks like clicking into the text would.
             // A click below the content lands at the document's end; a click in
             // a side margin lands at the nearest text position to the pointer.
-            if (!start) return
             const end = view.state.doc.content.size
             const target = start.below
               ? end

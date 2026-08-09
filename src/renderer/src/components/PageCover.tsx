@@ -69,6 +69,7 @@ export function PageCover({
 
   return (
     <div
+      data-page-cover
       className="group/cover relative w-full overflow-hidden"
       style={{ height: COVER_HEIGHT }}
     >
