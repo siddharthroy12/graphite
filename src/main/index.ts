@@ -1,5 +1,6 @@
 import { join } from 'node:path'
-import { app, BrowserWindow, session, shell } from 'electron'
+import { app, BrowserWindow, Menu, session, shell } from 'electron'
+import type { MenuItemConstructorOptions } from 'electron'
 import { closeDatabase, initDatabase, purgeExpiredTrash } from './db'
 import { pruneImageFiles, registerIconProtocol, registerIconScheme } from './icons'
 import { registerIpcHandlers } from './ipc'
@@ -82,6 +83,35 @@ function createWindow(): BrowserWindow {
   })
 
   window.on('ready-to-show', () => window.show())
+
+  // Native spelling suggestions on right-click. Electron's built-in
+  // spellchecker (webPreferences.spellcheck) draws the red squiggles and fills
+  // in `misspelledWord`/`dictionarySuggestions`; here we turn those into a
+  // context menu offering the corrections, plus "Add to dictionary". Grammar
+  // suggestions are handled separately in the renderer (a misspelling isn't a
+  // grammar issue, so the two menus never collide).
+  window.webContents.on('context-menu', (_event, params) => {
+    const { misspelledWord, dictionarySuggestions } = params
+    if (!misspelledWord) return
+
+    const template: MenuItemConstructorOptions[] = dictionarySuggestions.map((suggestion) => ({
+      label: suggestion,
+      click: () => window.webContents.replaceMisspelling(suggestion)
+    }))
+    if (template.length === 0) {
+      template.push({ label: 'No suggestions', enabled: false })
+    }
+    template.push(
+      { type: 'separator' },
+      {
+        label: 'Add to dictionary',
+        click: () =>
+          window.webContents.session.addWordToSpellCheckerDictionary(misspelledWord)
+      }
+    )
+
+    Menu.buildFromTemplate(template).popup({ window })
+  })
 
   // Keep navigation inside the app; anything else goes to the user's browser.
   window.webContents.setWindowOpenHandler(({ url }) => {
