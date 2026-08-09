@@ -1,0 +1,69 @@
+name: Release
+
+# Cut a release by pushing a tag like `v0.1.0`. Each OS builds its own
+# installers; on a tag they're attached to the GitHub Release, and every run
+# uploads them as workflow artifacts too. `workflow_dispatch` lets you build the
+# distributables on demand without tagging (artifacts only).
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }}
+    strategy:
+      # One OS failing shouldn't throw away the others' artifacts.
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            platform: mac
+          - os: windows-latest
+            platform: win
+          - os: ubuntu-latest
+            platform: linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # `dist:<platform>` runs `electron-vite build` then packages with
+      # electron-builder. The app is unsigned (no identity configured).
+      - name: Package
+        run: npm run dist:${{ matrix.platform }}
+        env:
+          # Lets electron-builder authenticate if a step ever needs GitHub.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: graphite-${{ matrix.platform }}
+          if-no-files-found: ignore
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/*.exe
+            release/*.AppImage
+            release/*.deb
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/*.dmg
+            release/*.zip
+            release/*.exe
+            release/*.AppImage
+            release/*.deb
