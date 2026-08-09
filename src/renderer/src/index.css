@@ -351,17 +351,26 @@ body.is-dragging-block * {
    absolutely-positioned, click-through `::after` the same size as the box,
    tinted the same colour. It sits inside the box's own edges like a normal
    background would, so it can never bleed into the gap between blocks. */
-.graphite-editor .tiptap .node-media.block-selected {
+.graphite-editor .tiptap .node-media {
   position: relative;
 }
 
-.graphite-editor .tiptap .node-media.block-selected::after {
+/* Always present so it can fade both ways (a `::after` scoped to
+   `.block-selected` would blink out the moment the class is removed, with no
+   element left to transition). Invisible and click-through until selected. */
+.graphite-editor .tiptap .node-media::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
   border-radius: inherit;
   background-color: color-mix(in oklab, #2f6fa8 30%, transparent);
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.graphite-editor .tiptap .node-media.block-selected::after {
+  opacity: 1;
 }
 
 /* Drop indicator for a block drag, drawn by the handle plugin. */
@@ -395,6 +404,17 @@ body.is-dragging-block * {
 .graphite-editor .tiptap .block-selected {
   border-radius: 3px;
   background-color: color-mix(in oklab, #2f6fa8 30%, transparent);
+}
+
+/* The tint fades in and out. The transition sits on the selectable blocks
+   themselves — not on `.block-selected` — because the block element persists
+   while only the class is toggled, so the fade runs in both directions. The
+   decoration lands on each top-level block (direct children of `.tiptap`) and
+   on list items, which is exactly what this covers; media fades via its own
+   `::after` above. */
+.graphite-editor .tiptap > *,
+.graphite-editor .tiptap li {
+  transition: background-color 140ms ease;
 }
 
 /* The native highlight underneath would otherwise show through the tint. */
