@@ -450,6 +450,81 @@ body.is-selecting-blocks * {
   @apply pt-5 text-xl font-semibold tracking-tight;
 }
 
+/* Toggle heading (see ToggleHeading.tsx). A collapsible block whose first child
+   is a real heading (the summary) followed by indented nested blocks. The left
+   padding is the chevron gutter; the block's own 5px lives on the other three
+   sides like every other block. */
+.graphite-editor .tiptap .toggle-heading {
+  position: relative;
+  border-radius: 3px;
+  padding: 5px 5px 5px 1.5rem;
+}
+
+/* The chevron sits in that gutter, its row height matched to the summary's line
+   (per level, below) so it centres on the first line. Top offset is the block's
+   own 5px padding. */
+.graphite-editor .tiptap .toggle-heading-chevron {
+  position: absolute;
+  left: 0.25rem;
+  top: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: color-mix(in oklab, var(--foreground) 55%, transparent);
+}
+
+.graphite-editor .tiptap .toggle-heading-chevron:hover {
+  color: var(--foreground);
+}
+
+.graphite-editor .tiptap .toggle-heading-chevron svg {
+  transition: transform 150ms ease;
+}
+
+.graphite-editor .tiptap .toggle-heading[data-open='true'] .toggle-heading-chevron svg {
+  transform: rotate(90deg);
+}
+
+.graphite-editor .tiptap .toggle-heading[data-level='1'] .toggle-heading-chevron {
+  height: 2.25rem;
+}
+.graphite-editor .tiptap .toggle-heading[data-level='2'] .toggle-heading-chevron {
+  height: 2rem;
+}
+.graphite-editor .tiptap .toggle-heading[data-level='3'] .toggle-heading-chevron {
+  height: 1.75rem;
+}
+
+/* The summary heading hands its own block padding to the toggle wrapper, so the
+   chevron aligns to a predictable top rather than to the level's own pt-* space. */
+.graphite-editor .tiptap .toggle-heading-body > .block-wrap:first-child {
+  padding: 0;
+}
+.graphite-editor .tiptap .toggle-heading-body > :first-child :is(h1, h2, h3) {
+  padding-top: 0;
+}
+
+/* Nested blocks keep the top-level block gap, indent under the summary, and are
+   hidden when the toggle is collapsed. Paragraphs aren't wrapped, so they need
+   the same 5px block padding applied directly, as at the top level. */
+.graphite-editor .tiptap .toggle-heading-body > * + * {
+  margin-top: var(--block-gap);
+}
+.graphite-editor .tiptap .toggle-heading-body > :not(:first-child) {
+  margin-left: 1.5rem;
+}
+.graphite-editor .tiptap .toggle-heading-body > p {
+  padding: 5px;
+}
+.graphite-editor .tiptap .toggle-heading[data-open='false'] .toggle-heading-body > :not(:first-child) {
+  display: none;
+}
+
 .graphite-editor .tiptap ul,
 .graphite-editor .tiptap ol {
   margin-bottom: 0;

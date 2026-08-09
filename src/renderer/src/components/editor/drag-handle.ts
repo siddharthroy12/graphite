@@ -3,6 +3,7 @@ import { Fragment, Slice } from '@tiptap/pm/model'
 import { NodeSelection, Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import { dropPoint } from '@tiptap/pm/transform'
 import type { EditorView } from '@tiptap/pm/view'
+import { TOGGLE_HEADING_NODE } from './ToggleHeading'
 
 /**
  * Notion-style block controls: a grip that drags a block to a new position and
@@ -43,6 +44,8 @@ interface DropSpot {
 
 const isList = (el: Element): boolean => el.tagName === 'UL' || el.tagName === 'OL'
 
+const isToggle = (el: Element): boolean => el.classList.contains('toggle-heading')
+
 const spans = (el: Element, clientY: number): boolean => {
   const rect = el.getBoundingClientRect()
   return clientY >= rect.top && clientY <= rect.bottom
@@ -72,8 +75,8 @@ function closestChild(children: Element[], clientY: number): Element | undefined
 }
 
 /**
- * The block-level element under `clientY`, descending into list items so each
- * one gets its own handle at any nesting depth.
+ * The block-level element under `clientY`, descending into list items and
+ * toggle-heading bodies so each nested block gets its own handle at any depth.
  *
  * This hit-tests the DOM by row rather than asking `posAtCoords` for a point:
  * a probe x has to be guessed, and any guess lands in empty space for some
@@ -85,21 +88,37 @@ function blockElementAt(view: EditorView, clientY: number): HTMLElement | null {
   if (!first) return null
 
   let el: Element = first
-  while (isList(el)) {
-    const item = closestChild(Array.from(el.children), clientY)
-    if (!item) break
-    // Keep descending only if a nested list — not the item's own text — is
-    // what sits under the pointer. Strict containment here (not "nearest"):
-    // a nested list is small relative to its parent item, so it should only
-    // take over when the pointer is genuinely inside it.
-    const nested: Element | undefined = Array.from(item.children).find(
-      (child) => isList(child) && spans(child, clientY)
-    )
-    if (!nested) {
-      el = item
-      break
+  for (;;) {
+    if (isList(el)) {
+      const item = closestChild(Array.from(el.children), clientY)
+      if (!item) break
+      // Keep descending only if a nested list — not the item's own text — is
+      // what sits under the pointer. Strict containment here (not "nearest"):
+      // a nested list is small relative to its parent item, so it should only
+      // take over when the pointer is genuinely inside it.
+      const nested = Array.from(item.children).find(
+        (child) => isList(child) && spans(child, clientY)
+      )
+      if (!nested) {
+        el = item
+        break
+      }
+      el = nested
+      continue
     }
-    el = nested
+
+    if (isToggle(el)) {
+      const body = el.querySelector<HTMLElement>(':scope > .toggle-heading-body')
+      if (!body) break
+      const child = closestChild(Array.from(body.children), clientY)
+      // The summary (first child) has no handle of its own — its row drags the
+      // whole toggle. Only the nested blocks below it descend to their own row.
+      if (!child || child === body.firstElementChild) break
+      el = child
+      continue
+    }
+
+    break
   }
 
   return el instanceof HTMLElement ? el : null
@@ -145,6 +164,24 @@ function dropSpotAt(view: EditorView, clientY: number): DropSpot | null {
 
   const node = view.state.doc.nodeAt(pos)
   if (!node) return null
+
+  // Over a toggle's summary (`blockElementAt` resolves the whole toggle there,
+  // never a nested row): the upper half drops above the toggle as a sibling,
+  // the lower half drops *inside* it as the first nested block — so a block can
+  // be dragged into a toggle, even an empty one, by aiming at its heading.
+  // Nested rows are handled by the generic path below (they resolve to their
+  // own block, not the toggle).
+  if (node.type.name === TOGGLE_HEADING_NODE) {
+    const summary = dom.querySelector<HTMLElement>(':scope > .toggle-heading-body > *')
+    const summaryRect = (summary ?? dom).getBoundingClientRect()
+    if (clientY >= summaryRect.top + summaryRect.height / 2) {
+      const heading = node.firstChild
+      return { pos: pos + 1 + (heading ? heading.nodeSize : 0), y: summaryRect.bottom }
+    }
+    const prev = dom.previousElementSibling
+    const top = dom.getBoundingClientRect().top
+    return { pos, y: prev ? (prev.getBoundingClientRect().bottom + top) / 2 : top }
+  }
 
   const rect = dom.getBoundingClientRect()
   const above = clientY < rect.top + rect.height / 2

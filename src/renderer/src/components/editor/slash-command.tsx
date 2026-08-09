@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { SUBPAGE_NODE } from '@shared/subpage-block'
 import { MEDIA_NODE } from '@shared/media'
+import { TOGGLE_HEADING_NODE } from './ToggleHeading'
 import { pageIdFor, refreshTree } from './editor-registry'
 import { SlashMenu, type SlashMenuHandle } from './SlashMenu'
 
@@ -141,15 +142,31 @@ export const SLASH_ITEMS: SlashItem[] = [
       })
     }
   },
-  {
-    title: 'Toggle heading',
-    description: 'Collapse-style heading 3',
-    icon: ChevronRight,
-    keywords: ['collapse', 'details'],
-    command: ({ editor, range }) =>
-      editor.chain().focus().deleteRange(range).setNode('heading', { level: 3 }).run()
-  }
+  toggleHeadingItem(1),
+  toggleHeadingItem(2),
+  toggleHeadingItem(3)
 ]
+
+/** A slash item that inserts a collapsible heading of the given level. */
+function toggleHeadingItem(level: 1 | 2 | 3): SlashItem {
+  return {
+    title: `Toggle heading ${level}`,
+    description: 'Collapsible heading with nested blocks',
+    icon: ChevronRight,
+    keywords: ['toggle', 'collapse', 'details', 'fold', `h${level}`],
+    command: ({ editor, range }) =>
+      editor
+        .chain()
+        .focus()
+        .deleteRange(range)
+        .insertContent({
+          type: TOGGLE_HEADING_NODE,
+          attrs: { open: true },
+          content: [{ type: 'heading', attrs: { level } }]
+        })
+        .run()
+  }
+}
 
 /** Drops in an empty image block; its node view prompts for the upload. */
 function insertImage(editor: Editor, range: Range): void {

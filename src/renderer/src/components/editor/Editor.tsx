@@ -11,6 +11,7 @@ import { CodeBlock, lowlight } from './CodeBlock'
 import { MediaBlock } from './MediaBlock'
 import { SubpageBlock } from './SubpageBlock'
 import { WrappedHeading, WrappedBlockquote, WrappedHorizontalRule } from './block-wrapper'
+import { ToggleHeading } from './ToggleHeading'
 import { registerEditor, unregisterEditor } from './editor-registry'
 import { FormattingMenu } from './FormattingMenu'
 import { SlashCommand } from './slash-command'
@@ -71,6 +72,7 @@ export function Editor({
         WrappedHeading.configure({ levels: [1, 2, 3] }),
         WrappedBlockquote,
         WrappedHorizontalRule,
+        ToggleHeading,
         CodeBlock.configure({ lowlight }),
         MediaBlock,
         SubpageBlock,
