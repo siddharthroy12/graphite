@@ -49,7 +49,10 @@ jobs:
         include:
           - os: macos-latest
             platform: mac
-          - os: windows-latest
+          # Pinned to 2022: the native better-sqlite3 rebuild needs Visual
+          # Studio with the C++ workload, and the node-gyp bundled here fails to
+          # detect it on the newer windows-latest (2025) image.
+          - os: windows-2022
             platform: win
           - os: ubuntu-latest
             platform: linux
