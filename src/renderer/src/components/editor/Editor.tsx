@@ -17,6 +17,7 @@ import { FormattingMenu } from './FormattingMenu'
 import { SlashCommand } from './slash-command'
 import { BlockDragHandle } from './drag-handle'
 import { BlockSelection } from './block-selection'
+import { GrammarSuggestions } from './GrammarSuggestions'
 
 interface EditorProps {
   /** Changes remount the editor with the new document. */
@@ -93,7 +94,8 @@ export function Editor({
         }),
         SlashCommand,
         BlockDragHandle,
-        BlockSelection
+        BlockSelection,
+        GrammarSuggestions
       ],
       content: parseContent(initialContent),
       autofocus: false,
