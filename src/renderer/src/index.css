@@ -428,8 +428,10 @@ body.is-selecting-blocks * {
 /* Headings, blockquotes and dividers render inside an extra `.block-wrap` div
    (see block-wrapper.ts) that carries this uniform block padding without
    disturbing their own tag styling. List items carry the same class on the
-   `<li>` itself (added through the list-item HTMLAttributes), though their own
-   marker-offset padding below wins over this. Paragraphs are padded directly. */
+   `<li>` itself (added through the list-item HTMLAttributes); their own
+   marker-offset padding below re-qualifies `.block-wrap` in the selector so it
+   out-specifies this rule and keeps the left gutter. Paragraphs are padded
+   directly. */
 .graphite-editor .tiptap .block-wrap {
   padding: 5px;
 }
@@ -486,8 +488,8 @@ body.is-selecting-blocks * {
    item covers the marker and every row highlights uniformly. The 5px on
    three sides matches every other block's own `.block-wrap` padding (see
    above) — left stays wider to make room for the marker instead. */
-.graphite-editor .tiptap ul:not([data-type="taskList"]) > li,
-.graphite-editor .tiptap ol > li {
+.graphite-editor .tiptap ul:not([data-type="taskList"]) > li.block-wrap,
+.graphite-editor .tiptap ol > li.block-wrap {
   position: relative;
   padding: 5px 5px 5px 1.5rem;
 }
