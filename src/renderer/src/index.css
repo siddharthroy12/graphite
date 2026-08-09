@@ -298,78 +298,38 @@ body.is-dragging-block * {
   width: 100%;
 }
 
-/* A selected media block (image/file) gets the same bluish tint
-   as a marquee block selection below, rather than the plain-text wash above —
-   media reads more like a distinct object on the page than a line of text, so
-   it gets the more visible treatment. A `box-shadow` rather than a bigger
-   padding: growing the existing 5px on (de)selection would shift the layout
-   every time, where a shadow paints outside the box without taking part in
-   layout, so the box's own size never changes.
+/* A selected media block (image/file) gets the same bluish tint as a marquee
+   block selection, whether it was selected by clicking it — a `NodeSelection`,
+   which tiptap marks with `ProseMirror-selectednode` — or swept by the marquee
+   (`.block-selected`). Both routes light up the same overlay, so a clicked
+   image looks identical to a marqueed one.
 
-   It traces `.node-media-content` (the inner wrapper, sized to the actual
-   image or file card — see MediaBlock.tsx), not `.node-media` (the outer
-   element tiptap's React node view renderer stamps on its own wrapper, and
-   the one `ProseMirror-selectednode` actually toggles on, hence the
-   `.node-media.ProseMirror-selectednode` prefix below). `.node-media` always
-   carries a constant 5px padding for alignment with every other block, so a
-   ring drawn on it would sit flush with that outer edge, leaving the padding
-   as a plain, unfilled gap before the content it's meant to be marking as
-   selected — tracing the inner element instead keeps the ring flush with the
-   content.
-
-   `:not(.block-selected)` matters: tiptap's own node-view selection check
-   (`handleSelectionUpdate`) isn't actually gated on the selection being a
-   `NodeSelection` — it only checks whether the current selection's range
-   contains the node, full stop. So the marquee's multi-block *text* selection
-   (see block-selection.ts) also puts `ProseMirror-selectednode` on every
-   media block it happens to span, alongside the marquee's own
-   `.block-selected`. Excluding `.block-selected` restricts the ring to an
-   actual single-block selection (clicking the block's own grip), which never
-   carries that class — the marquee case keeps only its own flat tint, which
-   stays inside its box like every other block's. */
-.graphite-editor
-  .tiptap
-  .node-media.ProseMirror-selectednode:not(.block-selected)
-  .node-media-content {
-  /* Matches the `rounded-[3px]` on the image or file card itself — the
-     shadow traces this element's own corner, so a mismatched radius here
-     would show as one corner peeking out from behind the content's
-     differently-rounded one. Below the theme's smallest step
-     (`--radius-sm`), hence a literal pixel value rather than a variable. */
-  border-radius: 3px;
-  box-shadow: 0 0 0 4px color-mix(in oklab, #2f6fa8 30%, transparent);
-}
-
-/* The marquee case (`.block-selected` alone, no ring above): the generic
-   `.block-selected` rule already gives this element the same background
-   every other selected block gets, but that paints *behind* the media
-   content — and unlike a paragraph, an image is opaque, so the tint
-   would only ever show in the 5px padding ring around it, not over the
-   content itself. Rather than reach for another box-shadow (the very thing
-   just excluded above, for bleeding into neighbouring gaps), this paints an overlay *in
-   front of* the content instead: `position: relative` on the box plus an
-   absolutely-positioned, click-through `::after` the same size as the box,
-   tinted the same colour. It sits inside the box's own edges like a normal
-   background would, so it can never bleed into the gap between blocks. */
+   An image is opaque, so a plain background behind it would only show in the
+   block's 5px padding, never over the picture. The tint is instead an
+   absolutely-positioned, click-through `::after` at `inset: 0` — covering the
+   content and the padding alike — painted in front. It's on `.node-media` (the
+   outer wrapper tiptap's React node view stamps, and the element
+   `ProseMirror-selectednode` toggles on), always present at `opacity: 0` so it
+   can fade both ways: a `::after` scoped to the selected state would blink out
+   the moment the class is removed, with no element left to transition. */
 .graphite-editor .tiptap .node-media {
   position: relative;
 }
 
-/* Always present so it can fade both ways (a `::after` scoped to
-   `.block-selected` would blink out the moment the class is removed, with no
-   element left to transition). Invisible and click-through until selected. */
 .graphite-editor .tiptap .node-media::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  border-radius: inherit;
+  /* Matches the 3px other selected blocks round their tint to. */
+  border-radius: 3px;
   background-color: color-mix(in oklab, #2f6fa8 30%, transparent);
   opacity: 0;
   transition: opacity 140ms ease;
 }
 
-.graphite-editor .tiptap .node-media.block-selected::after {
+.graphite-editor .tiptap .node-media.block-selected::after,
+.graphite-editor .tiptap .node-media.ProseMirror-selectednode::after {
   opacity: 1;
 }
 
