@@ -94,6 +94,16 @@ export interface DataLocation {
   isDefault: boolean
 }
 
+/** How much disk the workspace occupies, in bytes, for the settings panel. */
+export interface DataUsage {
+  /** Everything below combined. */
+  total: number
+  /** The SQLite database and its WAL/SHM siblings. */
+  database: number
+  /** Uploaded images and file-block attachments. */
+  media: number
+}
+
 /** A tab as stored on disk. Navigation history is intentionally not persisted. */
 export interface PersistedTab {
   id: string
@@ -157,6 +167,8 @@ export interface GraphiteApi {
     dataPath(): Promise<string>
     /** Where the workspace is stored, for the settings panel. */
     dataInfo(): Promise<DataLocation>
+    /** How much disk the workspace occupies, for the settings panel. */
+    dataUsage(): Promise<DataUsage>
     /** Opens a folder picker and relocates the workspace; `null` if cancelled. */
     chooseDataLocation(): Promise<DataLocation | null>
     /** Moves the workspace back to the default location. */

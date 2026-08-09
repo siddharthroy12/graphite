@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { DataLocation, ThemePreference } from '@shared/types'
+import type { DataLocation, DataUsage, ThemePreference } from '@shared/types'
 import { FolderOpen } from 'lucide-react'
 import {
   Dialog,
@@ -25,17 +25,33 @@ interface SettingsDialogProps {
   onOpenChange(open: boolean): void
 }
 
+/** Bytes as a compact, human-readable size (e.g. "12.4 MB"). */
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  const units = ['KB', 'MB', 'GB', 'TB']
+  let value = bytes / 1024
+  let unit = 0
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024
+    unit += 1
+  }
+  return `${value.toFixed(value < 10 ? 1 : 0)} ${units[unit]}`
+}
+
 export function SettingsDialog({
   open,
   onOpenChange
 }: SettingsDialogProps): React.JSX.Element {
   const { theme, setTheme } = useWorkspace()
   const [location, setLocation] = useState<DataLocation | null>(null)
+  const [usage, setUsage] = useState<DataUsage | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (open) void window.api.system.dataInfo().then(setLocation)
+    if (!open) return
+    void window.api.system.dataInfo().then(setLocation)
+    void window.api.system.dataUsage().then(setUsage)
   }, [open])
 
   // A successful relocation reopens the database at the new spot in the main
@@ -143,6 +159,32 @@ export function SettingsDialog({
             </div>
 
             {error && <p className="text-xs text-destructive">{error}</p>}
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <div className="flex items-baseline justify-between gap-4">
+              <Label>Disk usage</Label>
+              <span className="text-sm font-medium tabular-nums">
+                {usage ? formatBytes(usage.total) : '…'}
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              How much space your workspace takes up on this machine.
+            </p>
+            {usage && (
+              <dl className="space-y-1 text-sm">
+                <div className="flex items-baseline justify-between gap-4">
+                  <dt className="text-muted-foreground">Pages &amp; text</dt>
+                  <dd className="tabular-nums">{formatBytes(usage.database)}</dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-4">
+                  <dt className="text-muted-foreground">Images &amp; files</dt>
+                  <dd className="tabular-nums">{formatBytes(usage.media)}</dd>
+                </div>
+              </dl>
+            )}
           </div>
         </div>
       </DialogContent>

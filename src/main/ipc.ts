@@ -1,7 +1,10 @@
+import { readdirSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import type {
   CreatePageInput,
   DataLocation,
+  DataUsage,
   MovePageInput,
   Preferences,
   UpdatePageInput
@@ -27,7 +30,14 @@ import {
   trashPage,
   updatePage
 } from './db'
-import { getDataDir, isDefaultDataDir, relocateDataDir, resetDataDir } from './data-dir'
+import {
+  dbFileName,
+  getDataDir,
+  iconsDirName,
+  isDefaultDataDir,
+  relocateDataDir,
+  resetDataDir
+} from './data-dir'
 import {
   pruneImageFiles,
   saveImageFile,
@@ -38,6 +48,46 @@ import {
 
 function dataLocation(): DataLocation {
   return { dir: getDataDir(), dbPath: getDatabasePath(), isDefault: isDefaultDataDir() }
+}
+
+/** Size of one file, or 0 if it doesn't exist (WAL/SHM come and go). */
+function fileSize(path: string): number {
+  try {
+    return statSync(path).size
+  } catch {
+    return 0
+  }
+}
+
+/** Recursive size of a directory's contents, or 0 if it doesn't exist. */
+function dirSize(path: string): number {
+  let entries: string[]
+  try {
+    entries = readdirSync(path)
+  } catch {
+    return 0
+  }
+  let total = 0
+  for (const name of entries) {
+    const full = join(path, name)
+    try {
+      const stat = statSync(full)
+      total += stat.isDirectory() ? dirSize(full) : stat.size
+    } catch {
+      // A file that vanished mid-scan just doesn't count.
+    }
+  }
+  return total
+}
+
+function dataUsage(): DataUsage {
+  const dir = getDataDir()
+  const database = [dbFileName(), `${dbFileName()}-wal`, `${dbFileName()}-shm`].reduce(
+    (sum, name) => sum + fileSize(join(dir, name)),
+    0
+  )
+  const media = dirSize(join(dir, iconsDirName()))
+  return { total: database + media, database, media }
 }
 
 /**
@@ -101,6 +151,7 @@ export function registerIpcHandlers(): void {
 
   handle('system:dataPath', () => getDatabasePath())
   handle('system:dataInfo', () => dataLocation())
+  handle('system:dataUsage', () => dataUsage())
   handle('system:revealData', () => {
     shell.showItemInFolder(getDatabasePath())
   })

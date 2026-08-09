@@ -45,6 +45,7 @@ const api = {
   system: {
     dataPath: () => ipcRenderer.invoke('system:dataPath'),
     dataInfo: () => ipcRenderer.invoke('system:dataInfo'),
+    dataUsage: () => ipcRenderer.invoke('system:dataUsage'),
     chooseDataLocation: () => ipcRenderer.invoke('system:chooseDataLocation'),
     resetDataLocation: () => ipcRenderer.invoke('system:resetDataLocation'),
     revealData: () => ipcRenderer.invoke('system:revealData'),
