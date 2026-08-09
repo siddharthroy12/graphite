@@ -251,9 +251,16 @@ export const BlockSelection = Extension.create({
               const rect = dom.getBoundingClientRect()
               return rect.bottom > top && rect.top < bottom
             })
-            if (rows.length === 0) return
 
-            const selection = blockSpanSelection(doc, rows[0], rows[rows.length - 1])
+            // No block under the box — e.g. the box sits entirely in the top or
+            // bottom margin. Collapse any selection a previous move had set, so
+            // shrinking the box off every block drops its tint instead of
+            // leaving the last covered block stuck on. Keep the marquee flag so
+            // the gesture stays a marquee (the empty selection draws nothing).
+            const selection =
+              rows.length === 0
+                ? TextSelection.create(doc, view.state.selection.from)
+                : blockSpanSelection(doc, rows[0], rows[rows.length - 1])
 
             if (!selection.eq(view.state.selection)) {
               view.dispatch(
