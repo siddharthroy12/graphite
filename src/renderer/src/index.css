@@ -538,22 +538,34 @@ body.is-selecting-blocks * {
   gap: var(--block-gap);
 }
 
-/* Markers are rendered inside each item's own box (like the to-do checkbox),
-   rather than as CSS list markers in the gutter, so a selection tint on the
-   item covers the marker and every row highlights uniformly. The 5px on
-   three sides matches every other block's own `.block-wrap` padding (see
-   above) — left stays wider to make room for the marker instead. */
+/* Each item is a flex row: the marker is an in-flow column and the content
+   flexes beside it (rendered inside the item's own box, like the to-do
+   checkbox, so a selection tint covers the marker and every row highlights
+   uniformly). The marker's `min-width` keeps single- and double-digit numbers —
+   and bullets — aligned; a wider number (100 and up) grows the column, pushing
+   that item's content right so the number never spills out of the block. The
+   small left padding matches the 5px every other block carries; the marker
+   column supplies the rest of the indent. */
 .graphite-editor .tiptap ul:not([data-type="taskList"]) > li.block-wrap,
 .graphite-editor .tiptap ol > li.block-wrap {
-  position: relative;
-  padding: 5px 5px 5px 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.4rem;
+  padding: 5px 5px 5px 5px;
+}
+
+.graphite-editor .tiptap ul:not([data-type="taskList"]) > li::before,
+.graphite-editor .tiptap ol > li::before {
+  flex: none;
+  min-width: 1rem;
+  text-align: right;
+  white-space: nowrap;
+  color: color-mix(in oklab, var(--foreground) 55%, transparent);
 }
 
 .graphite-editor .tiptap ul:not([data-type="taskList"]) > li::before {
   content: "•";
-  position: absolute;
-  left: 0.5rem;
-  color: color-mix(in oklab, var(--foreground) 55%, transparent);
 }
 
 .graphite-editor .tiptap ol {
@@ -566,18 +578,22 @@ body.is-selecting-blocks * {
 
 .graphite-editor .tiptap ol > li::before {
   content: counter(graphite-ol) ".";
-  position: absolute;
-  /* Pin the number's *right* edge a fixed gap before the content (which begins
-     at the 1.5rem padding) so the gap never changes with digit count. The
-     marker sizes to its text and `translateX(-100%)` shifts it left by its own
-     width, landing its right edge on `left`; wider numbers simply extend
-     further into the gutter. A fixed-width right-aligned box can't do this —
-     Chromium overflows over-wide `nowrap` text to the right, into the content. */
-  left: 1rem;
-  transform: translateX(-100%);
-  white-space: nowrap;
-  color: color-mix(in oklab, var(--foreground) 55%, transparent);
   font-variant-numeric: tabular-nums;
+}
+
+/* The item's content sits beside the marker; a nested list drops to its own
+   line (flex-basis 100%) and indents to line up under the content, not the
+   marker. */
+.graphite-editor .tiptap ul:not([data-type="taskList"]) > li > :not(ul):not(ol),
+.graphite-editor .tiptap ol > li > :not(ul):not(ol) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.graphite-editor .tiptap ul:not([data-type="taskList"]) > li > :is(ul, ol),
+.graphite-editor .tiptap ol > li > :is(ul, ol) {
+  flex-basis: 100%;
+  margin-left: 1.4rem;
 }
 
 .graphite-editor .tiptap li p {
