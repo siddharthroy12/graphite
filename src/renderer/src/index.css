@@ -574,6 +574,9 @@ body.is-selecting-blocks * {
   left: 0;
   width: 1.15rem;
   text-align: right;
+  /* Wider numbers overflow the box to the left; without this the fixed width
+     would wrap "10." onto two lines instead. */
+  white-space: nowrap;
   color: color-mix(in oklab, var(--foreground) 55%, transparent);
   font-variant-numeric: tabular-nums;
 }
