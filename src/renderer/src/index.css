@@ -567,15 +567,14 @@ body.is-selecting-blocks * {
 .graphite-editor .tiptap ol > li::before {
   content: counter(graphite-ol) ".";
   position: absolute;
-  /* Right-align the number so its right edge stays a fixed gap from the content
-     (which begins at the 1.5rem padding), instead of growing toward the text as
-     the digit count climbs. A wider number overflows left into the gutter rather
-     than crowding the content. */
-  left: 0;
-  width: 1.15rem;
-  text-align: right;
-  /* Wider numbers overflow the box to the left; without this the fixed width
-     would wrap "10." onto two lines instead. */
+  /* Pin the number's *right* edge a fixed gap before the content (which begins
+     at the 1.5rem padding) so the gap never changes with digit count. The
+     marker sizes to its text and `translateX(-100%)` shifts it left by its own
+     width, landing its right edge on `left`; wider numbers simply extend
+     further into the gutter. A fixed-width right-aligned box can't do this —
+     Chromium overflows over-wide `nowrap` text to the right, into the content. */
+  left: 1rem;
+  transform: translateX(-100%);
   white-space: nowrap;
   color: color-mix(in oklab, var(--foreground) 55%, transparent);
   font-variant-numeric: tabular-nums;
