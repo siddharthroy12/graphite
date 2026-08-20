@@ -567,7 +567,13 @@ body.is-selecting-blocks * {
 .graphite-editor .tiptap ol > li::before {
   content: counter(graphite-ol) ".";
   position: absolute;
-  left: 0.25rem;
+  /* Right-align the number so its right edge stays a fixed gap from the content
+     (which begins at the 1.5rem padding), instead of growing toward the text as
+     the digit count climbs. A wider number overflows left into the gutter rather
+     than crowding the content. */
+  left: 0;
+  width: 1.15rem;
+  text-align: right;
   color: color-mix(in oklab, var(--foreground) 55%, transparent);
   font-variant-numeric: tabular-nums;
 }
