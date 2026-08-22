@@ -62,7 +62,12 @@ function createWindow(): BrowserWindow {
     show: false,
     title: 'Graphite',
     backgroundColor: '#ffffff',
-    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    // macOS keeps its native traffic lights over an inset title bar; Windows and
+    // Linux drop the native frame entirely and rely on the in-app title bar with
+    // custom window controls (see WindowControls in the renderer).
+    ...(process.platform === 'darwin'
+      ? { titleBarStyle: 'hiddenInset' as const }
+      : { frame: false }),
     // Packaged builds get their icon from electron-builder; macOS always takes
     // it from the bundle. This is only for the dev window on Windows/Linux.
     ...(isDev && process.platform !== 'darwin'
@@ -83,6 +88,13 @@ function createWindow(): BrowserWindow {
   })
 
   window.on('ready-to-show', () => window.show())
+
+  // Keep the renderer's custom maximize/restore button in sync with the actual
+  // window state (double-click drag, OS shortcuts, snap layouts, etc.).
+  const emitMaximized = (): void =>
+    window.webContents.send('window:maximizedChanged', window.isMaximized())
+  window.on('maximize', emitMaximized)
+  window.on('unmaximize', emitMaximized)
 
   // Native spelling suggestions on right-click. Electron's built-in
   // spellchecker (webPreferences.spellcheck) draws the red squiggles and fills

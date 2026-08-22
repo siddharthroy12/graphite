@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { displayTitle, findNode } from '@/lib/tree'
 import { useWorkspace, type Tab } from '@/lib/workspace'
 import { PageIcon } from './PageIcon'
+import { WindowControls } from './WindowControls'
 import type { PageTreeNode } from '@shared/types'
 
 export const TAB_DRAG_TYPE = 'application/x-graphite-tab'
@@ -55,7 +56,10 @@ export function TabBar(): React.JSX.Element {
         // segment: segments are sized to their content, so the bar's own
         // padding (pl-2/pr-2, and the wider traffic-light inset) would be
         // left without a line at either end.
-        'app-drag flex h-11 flex-none items-center gap-1 bg-sidebar bg-[linear-gradient(to_top,var(--border)_1px,transparent_1px)] pr-2 pl-2',
+        'app-drag flex h-11 flex-none items-center gap-1 bg-sidebar bg-[linear-gradient(to_top,var(--border)_1px,transparent_1px)] pl-2',
+        // On macOS the bar keeps its right padding; on Windows/Linux the window
+        // controls run flush to the corner, so drop it there.
+        isMac ? 'pr-2' : 'pr-0',
         // Clear the traffic lights when the sidebar isn't there to hold them.
         isMac && !sidebarOpen && 'pl-[78px]'
       )}
@@ -128,7 +132,7 @@ export function TabBar(): React.JSX.Element {
         </div>
       </div>
 
-      <div className="app-no-drag flex h-11 flex-none items-center gap-1">
+      <div className="app-no-drag flex h-11 flex-none items-center gap-1 pr-1">
         <span
           className={cn(
             'text-xs whitespace-nowrap',
@@ -137,8 +141,9 @@ export function TabBar(): React.JSX.Element {
         >
           {SAVE_LABELS[saveState]}
         </span>
-
       </div>
+
+      {!isMac && <WindowControls />}
     </div>
   )
 }

@@ -51,6 +51,19 @@ const api = {
     revealData: () => ipcRenderer.invoke('system:revealData'),
     openExternal: (url: string) => ipcRenderer.invoke('system:openExternal', url),
     platform: process.platform
+  },
+  window: {
+    minimize: () => ipcRenderer.invoke('window:minimize'),
+    maximizeToggle: () => ipcRenderer.invoke('window:maximizeToggle'),
+    close: () => ipcRenderer.invoke('window:close'),
+    isMaximized: (): Promise<boolean> => ipcRenderer.invoke('window:isMaximized'),
+    onMaximizedChange: (listener: (maximized: boolean) => void): (() => void) => {
+      const handler = (_event: unknown, maximized: boolean): void => listener(maximized)
+      ipcRenderer.on('window:maximizedChanged', handler)
+      return () => {
+        ipcRenderer.off('window:maximizedChanged', handler)
+      }
+    }
   }
 }
 

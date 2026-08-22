@@ -177,4 +177,14 @@ export interface GraphiteApi {
     openExternal(url: string): Promise<void>
     platform: NodeJS.Platform
   }
+  /** Custom window controls for the frameless Windows/Linux title bar. */
+  window: {
+    minimize(): Promise<void>
+    /** Maximizes, or restores if already maximized. */
+    maximizeToggle(): Promise<void>
+    close(): Promise<void>
+    isMaximized(): Promise<boolean>
+    /** Subscribes to maximize-state changes. Returns an unsubscribe function. */
+    onMaximizedChange(listener: (maximized: boolean) => void): () => void
+  }
 }

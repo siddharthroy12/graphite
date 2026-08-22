@@ -183,4 +183,23 @@ export function registerIpcHandlers(): void {
     }
     await shell.openExternal(parsed.toString())
   })
+
+  // Window controls for the frameless Windows/Linux chrome. Each acts on the
+  // window that sent the request, not just the focused one.
+  ipcMain.handle('window:minimize', (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.minimize()
+  })
+  ipcMain.handle('window:maximizeToggle', (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    if (!window) return
+    if (window.isMaximized()) window.unmaximize()
+    else window.maximize()
+  })
+  ipcMain.handle('window:close', (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.close()
+  })
+  ipcMain.handle(
+    'window:isMaximized',
+    (event) => BrowserWindow.fromWebContents(event.sender)?.isMaximized() ?? false
+  )
 }
