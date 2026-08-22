@@ -30,10 +30,12 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      # `npm ci` runs the postinstall `electron-builder install-app-deps`, which
-      # fetches better-sqlite3's prebuilt binary for this Electron ABI — no
-      # native compiler needed.
-      - run: npm ci
+      # --ignore-scripts skips better-sqlite3's install script, which would
+      # otherwise try to build the module for *host node* and fall back to a
+      # source compile (node-gyp fails under Python 3.12, which dropped
+      # distutils). Typecheck and build don't need the native binary — the main
+      # process externalizes better-sqlite3 — so no rebuild is required here.
+      - run: npm ci --ignore-scripts
       - run: npm run typecheck
       - run: npm run build
 
@@ -66,7 +68,12 @@ jobs:
           node-version: 20
           cache: npm
 
-      - run: npm ci
+      # Skip better-sqlite3's host-node install build (see the check job), then
+      # let electron-builder fetch the module's prebuilt binary for this Electron
+      # ABI (electron-v136). @electron/rebuild downloads the prebuilt rather than
+      # compiling, so no C/C++ toolchain (Visual Studio, etc.) is needed.
+      - run: npm ci --ignore-scripts
+      - run: npx electron-builder install-app-deps
 
       # `dist:<platform>` runs `electron-vite build` then packages with
       # electron-builder. The app is unsigned (no identity configured).
