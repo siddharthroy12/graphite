@@ -30,8 +30,9 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      # `npm ci` runs the postinstall electron-rebuild for better-sqlite3, which
-      # needs a C/C++ toolchain — present on ubuntu-latest by default.
+      # `npm ci` runs the postinstall `electron-builder install-app-deps`, which
+      # fetches better-sqlite3's prebuilt binary for this Electron ABI — no
+      # native compiler needed.
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build
@@ -49,9 +50,9 @@ jobs:
         include:
           - os: macos-latest
             platform: mac
-          # Pinned to 2022: the native better-sqlite3 rebuild needs Visual
-          # Studio with the C++ workload, and the node-gyp bundled here fails to
-          # detect it on the newer windows-latest (2025) image.
+          # better-sqlite3 now installs from a prebuilt binary (no compiler
+          # needed), so the runner image is not sensitive to the Visual Studio
+          # version; kept on 2022 as a known-good, stable image.
           - os: windows-2022
             platform: win
           - os: ubuntu-latest

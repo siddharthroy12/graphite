@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "description": "A local-first, Notion-like workspace for your desktop",
   "main": "./out/main/index.js",
-  "author": "siddharthroy",
+  "author": {
+    "name": "siddharthroy",
+    "email": "siddharthroy12@users.noreply.github.com"
+  },
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -15,8 +18,8 @@
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "icons": "electron scripts/generate-icons.cjs",
-    "rebuild": "electron-rebuild -f -w better-sqlite3",
-    "postinstall": "electron-rebuild -f -w better-sqlite3",
+    "rebuild": "electron-builder install-app-deps",
+    "postinstall": "electron-builder install-app-deps",
     "dist": "npm run build && electron-builder --dir",
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:win": "npm run build && electron-builder --win",
@@ -28,7 +31,6 @@
     "emojibase-data": "^17.0.0"
   },
   "devDependencies": {
-    "@electron/rebuild": "^3.7.2",
     "@tailwindcss/vite": "^4.1.11",
     "@tiptap/extension-code-block-lowlight": "^2.26.1",
     "@tiptap/extension-highlight": "^2.26.1",
