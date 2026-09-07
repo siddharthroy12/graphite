@@ -26,6 +26,26 @@ export function FormattingMenu({ editor }: FormattingMenuProps): React.JSX.Eleme
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkValue, setLinkValue] = useState('')
 
+  // The bubble menu sits outside the ProseMirror contenteditable. A button's
+  // normal click comes after its mousedown has moved focus away from the
+  // editor, which can clear the selected range. Run pointer actions during
+  // mousedown instead, before that focus change. Keyboard and accessibility
+  // activation only emits a click (detail === 0), so it retains a click path.
+  const runPointerAction = (
+    event: React.MouseEvent<HTMLButtonElement>,
+    action: () => void
+  ): void => {
+    event.preventDefault()
+    action()
+  }
+
+  const runKeyboardAction = (
+    event: React.MouseEvent<HTMLButtonElement>,
+    action: () => void
+  ): void => {
+    if (event.detail === 0) action()
+  }
+
   const openLinkEditor = (): void => {
     setLinkValue(editor.getAttributes('link').href ?? '')
     setLinkOpen(true)
@@ -132,7 +152,8 @@ export function FormattingMenu({ editor }: FormattingMenuProps): React.JSX.Eleme
               title={label}
               aria-label={label}
               className={cn('size-8', editor.isActive(name) && 'bg-accent text-accent-foreground')}
-              onClick={run}
+              onMouseDown={(event) => runPointerAction(event, run)}
+              onClick={(event) => runKeyboardAction(event, run)}
             >
               <Icon className="size-4" />
             </Button>
@@ -147,7 +168,8 @@ export function FormattingMenu({ editor }: FormattingMenuProps): React.JSX.Eleme
             title="Add link"
             aria-label="Add link"
             className={cn('size-8', editor.isActive('link') && 'bg-accent text-accent-foreground')}
-            onClick={openLinkEditor}
+            onMouseDown={(event) => runPointerAction(event, openLinkEditor)}
+            onClick={(event) => runKeyboardAction(event, openLinkEditor)}
           >
             <LinkIcon className="size-4" />
           </Button>
@@ -160,7 +182,16 @@ export function FormattingMenu({ editor }: FormattingMenuProps): React.JSX.Eleme
               title="Remove link"
               aria-label="Remove link"
               className="size-8"
-              onClick={() => editor.chain().focus().extendMarkRange('link').unsetLink().run()}
+              onMouseDown={(event) =>
+                runPointerAction(event, () =>
+                  editor.chain().focus().extendMarkRange('link').unsetLink().run()
+                )
+              }
+              onClick={(event) =>
+                runKeyboardAction(event, () =>
+                  editor.chain().focus().extendMarkRange('link').unsetLink().run()
+                )
+              }
             >
               <Unlink className="size-4" />
             </Button>
