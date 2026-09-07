@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { BubbleMenu, type Editor } from '@tiptap/react'
 import { NodeSelection } from '@tiptap/pm/state'
 import { isMarqueeSelection } from './block-selection'
@@ -25,6 +25,17 @@ interface FormattingMenuProps {
 export function FormattingMenu({ editor }: FormattingMenuProps): React.JSX.Element {
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkValue, setLinkValue] = useState('')
+
+  // The menu component stays mounted while its popup is hidden. Reset a
+  // previously opened link form for every new text selection so it can't mask
+  // the regular formatting controls on the next selection.
+  useEffect(() => {
+    const closeLinkEditor = (): void => setLinkOpen(false)
+    editor.on('selectionUpdate', closeLinkEditor)
+    return () => {
+      editor.off('selectionUpdate', closeLinkEditor)
+    }
+  }, [editor])
 
   // The bubble menu sits outside the ProseMirror contenteditable. A button's
   // normal click comes after its mousedown has moved focus away from the
