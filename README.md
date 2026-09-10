@@ -4,6 +4,8 @@
 
 <h1 align="center">Graphite</h1>
 
+![Screenshot](./screenshot.png)
+
 A local-only, Notion-style workspace for the desktop. Nested pages, a block
 editor, and full-text search — all stored in a single SQLite file on your
 machine. No account, no sync, no network calls.
