@@ -76,7 +76,8 @@ jobs:
       - run: npx electron-builder install-app-deps
 
       # `dist:<platform>` runs `electron-vite build` then packages with
-      # electron-builder. The app is unsigned (no identity configured).
+      # electron-builder. Its afterPack hook ad-hoc-signs the macOS bundle,
+      # including nested Electron code, without an Apple Developer certificate.
       - name: Package
         run: npm run dist:${{ matrix.platform }}
         env:
