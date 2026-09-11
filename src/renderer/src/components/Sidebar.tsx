@@ -41,10 +41,9 @@ export function Sidebar({
 
   return (
     <aside className="flex h-full flex-col border-r bg-sidebar text-sidebar-foreground">
-      {/* Space for the macOS traffic lights; also drags the window. Left
-          borderless on purpose — a rule here cuts across under the traffic
-          lights. The sidebar toggle itself lives in the tab bar. */}
-      <div className={cn('app-drag flex-none', isMac ? 'h-11' : 'h-9')} />
+      {/* Reserve space only for macOS traffic lights; on Windows/Linux the
+          sidebar content begins at the top. */}
+      {isMac && <div className="app-drag h-11 flex-none" />}
 
       <div className="flex flex-none flex-col gap-0.5 px-2 pt-2 pb-2">
         <button
